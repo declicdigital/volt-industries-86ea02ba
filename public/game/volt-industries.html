@@ -4589,25 +4589,28 @@ function foeStrength(foeKey, mission){
      nettement plus faible que Doctor Doom, quelle que soit la difficulte de la mission en cours.
      Avant ce correctif, danger/scope pouvaient a eux seuls ajouter jusqu'a +46, ecrasant totalement
      la difference de puissance entre les personnages (qui ne pesait que +/-32). */
-  /* Gardiens de Gemme : plus durs qu'un adversaire de mission classique, et de plus en plus
-     au fil de la collection (la 2e plus dure que la 1re, etc.) - mais dose pour rester gagnable :
-     reunir les 6 doit rester un vrai defi, jamais un mur. */
+  /* Gardiens de Gemme : le premier combat est neutre (cible 50/50), chaque Gemme deja en poche
+      rend le gardien plus coriace. La progression reste gagnable : la 6e est un boss final, pas un mur. */
   const ownedGemCount = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? (S.eclats||[]).length : 0;
   /* En parallele, tes propres Gemmes sont neutralisees pendant ces epreuves (voir
      gemTrialActive/playerMoves) : elles ne peuvent plus rendre la collection de plus en plus facile. */
-  const stoneBonus = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? 10 + ownedGemCount*4 : 0;
+  const stoneBonus = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? ownedGemCount*6 : 0;
   return Math.round(charTier(foeKey)*0.9 + danger*3 + scope*1 + (tier-24)*0.8 + rivalBonus + stoneBonus);
 }
 function winOdds(foeKey, mission){
+  /* Epreuves de Gemme : le premier combat vise 50/50, chaque Gemme deja gagnee rend le gardien
+      plus dur (-6% de chances par Gemme en poche), mais le plancher reste a 18% pour que la 6e
+      reste toujours a portee. */
+  if(mission && (mission.eclatQuest || mission.eclatReclaim)){
+    const ownedGemCount = (S.eclats||[]).length;
+    return clamp(0.50 - ownedGemCount*0.06, 0.18, 0.90);
+  }
   /* Courbe moderee : assez raide pour que l'ecart de force compte vraiment, sans punir trop
-     durement un ecart modeste. Plafond de victoire remonte legerement (91%) : une victoire tres
-     probable reste tres probable, sans etre pour autant totalement garantie. */
+      durement un ecart modeste. Plafond de victoire remonte legerement (91%) : une victoire tres
+      probable reste tres probable, sans etre pour autant totalement garantie. */
   const diff = playerStrength() - foeStrength(foeKey, mission);
   const p = 1/(1+Math.exp(-diff/8));
-  /* Epreuves de Gemme : le plancher de victoire est releve (18%) - meme le 6e gardien te laisse
-     toujours de vraies chances, le defi reste serieux sans jamais devenir impossible. */
-  const floor = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? 0.18 : 0.05;
-  return clamp(p, floor, 0.91);
+  return clamp(p, 0.05, 0.91);
 }
 
 function zoneOf(align){ return align>=15?'hero':(align<=-15?'villain':'neutral'); }
@@ -11994,11 +11997,11 @@ function startBattle(mission, done){
   }
   const allyRosterRaw = [{ isPlayer:true, key:null, name:myName, col:myCol, img:null, hp:myMaxHP, maxHp:myMaxHP, ko:false }]
     .concat(allyExtras.map(e=>Object.assign({ isPlayer:false }, e)));
-  /* Combat de Gemme : le gardien encaisse et frappe plus fort, et un peu plus a chaque Gemme
-     deja en poche - dose pour que la 6e reste dure mais gagnable, jamais un mur infranchissable. */
+  /* Combat de Gemme : la premiere epreuve est neutre (cible 50/50), chaque Gemme deja en poche
+      rend le gardien plus fort. La 6e est la plus dure, mais jamais infranchissable. */
   const stoneFight = !!(mission && (mission.eclatQuest || mission.eclatReclaim));
   const stoneOwnedCount = stoneFight ? (S.eclats||[]).length : 0;
-  const stoneHpMult = stoneFight ? Math.min(1.75, 1.22 + stoneOwnedCount*0.08) : 1;
+  const stoneHpMult = stoneFight ? Math.min(1.55, 0.90 + stoneOwnedCount*0.11) : 1;
   const foeMaxHp = vormirMirror ? myMaxHP : Math.round(combatMaxHp(foeKey) * stoneHpMult);
   const foeRosterRaw = [{ isPlayer:false, key:foeKey, name:foeName, col:foeCol, img:foe.img, hp:foeMaxHp, maxHp:foeMaxHp, ko:false }]
     .concat(foeExtras.map(e=>Object.assign({ isPlayer:false }, e)));
@@ -12745,7 +12748,7 @@ function startBattle(mission, done){
       setTimeout(runTurn, wait(900));
       return;
     }
-    const stoneDmgMult = stoneFight ? Math.min(1.55, 1.15 + stoneOwnedCount*0.06) : 1;
+    const stoneDmgMult = stoneFight ? Math.min(1.45, 0.92 + stoneOwnedCount*0.09) : 1;
     const d = dmgOf(m, combatAttackPower(actor.key), strMult(actor.key) * stoneDmgMult);
     const targetAllyIdx = pickAllyTarget(idx);
     const dApplied = dealToAlly(targetAllyIdx, d, actor.col) ?? d;
