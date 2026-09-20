@@ -12758,6 +12758,24 @@ function startBattle(mission, done){
       + (m.heal ? (S.lang==='fr'?` Il recupere ${m.heal} PV.`:` He recovers ${m.heal} HP.`) : ''));
     setTimeout(runTurn, wait(950));
   }
+  /* Une Gemme d'Infinite ne peut servir qu'une seule fois par combat : son coup disparait apres
+     usage et laisse place a un coup classique, pour ne jamais descendre sous 4 coups jouables. */
+  function consumeShardMove(mv){
+    const idx = myMoves.findIndex(m=>m.fr===mv.fr); if(idx<0) return;
+    const cand = S._moveCandidates || { atk:[], def:[] };
+    const pool = (mv.heal ? (cand.def||[]).concat(cand.atk||[]) : (cand.atk||[]).concat(cand.def||[]))
+      .filter(m=>m && !m.shard && !myMoves.some(x=>x.fr===m.fr));
+    let repl = pool[0];
+    if(!repl){
+      const basic = mv.heal ? (DEFENSE_MOVES_BY_POWER.regen||[]) : (BASIC_MOVES||[]);
+      repl = basic.find(m=>m && !myMoves.some(x=>x.fr===m.fr));
+    }
+    if(repl) myMoves.splice(idx, 1, repl); else myMoves.splice(idx, 1);
+    if(S.battleLoadout) S.battleLoadout = myMoves.map(m=>m.fr);
+    setLog(S.lang==='fr'
+      ? `${mv.shardName||'La Gemme'} s'eteint : son pouvoir ne peut servir qu'une fois par combat.`
+      : `${mv.shardName||'The Gem'} goes dark: its power can only be used once per fight.`);
+  }
   function playerTurn(i){
     if(st.busy) return;
     const mv = myMoves[i]; if(!mv) return;
@@ -12766,6 +12784,7 @@ function startBattle(mission, done){
     if(st.lastMoveFr && st.lastMoveFr === mv.fr) return;
     st.busy = true; setMovesEnabled(false);
     st.lastMoveFr = mv.fr; st.playerActs = (st.playerActs||0) + 1;
+    if(mv.shard) setTimeout(()=>{ consumeShardMove(mv); renderMoves(); }, 0);
     if(st.targetIdx<0 || !foeRoster[st.targetIdx] || foeRoster[st.targetIdx].ko){ pickNextTarget(); if(st.targetIdx<0){ finish(true); return; } }
     const m = myMoves[i]; const label = S.lang==='fr'?m.fr:m.en;
     const targetIdx = st.targetIdx, targetName = foeRoster[targetIdx].name;
