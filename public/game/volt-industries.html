@@ -4597,13 +4597,19 @@ function foeStrength(foeKey, mission){
   const stoneBonus = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? ownedGemCount*6 : 0;
   return Math.round(charTier(foeKey)*0.9 + danger*3 + scope*1 + (tier-24)*0.8 + rivalBonus + stoneBonus);
 }
+function gemFightMultOf(mission){
+  const id = mission && (typeof mission.eclatQuest==='string' ? mission.eclatQuest : (typeof mission.eclatReclaim==='string' ? mission.eclatReclaim : null));
+  const T = S.gemFightMult || (S.gemFightMult = {});
+  if(id && T[id]==null) T[id] = Math.exp((Math.random()*2-1)*Math.log(1.6));
+  return id ? T[id] : 1;
+}
 function winOdds(foeKey, mission){
   /* Epreuves de Gemme : le premier combat vise 50/50, chaque Gemme deja gagnee rend le gardien
       plus dur (-6% de chances par Gemme en poche), mais le plancher reste a 18% pour que la 6e
       reste toujours a portee. */
   if(mission && (mission.eclatQuest || mission.eclatReclaim)){
     const ownedGemCount = (S.eclats||[]).length;
-    return clamp(0.50 - ownedGemCount*0.06, 0.18, 0.90);
+    return clamp((0.50 - ownedGemCount*0.06) / gemFightMultOf(mission), 0.10, 0.92);
   }
   /* Courbe moderee : assez raide pour que l'ecart de force compte vraiment, sans punir trop
       durement un ecart modeste. Plafond de victoire remonte legerement (91%) : une victoire tres
@@ -8253,7 +8259,11 @@ function buildCareerPlan(){
      avoir un seuil de Realite tres bas et un seuil de Temps tres haut, sans aucune correlation entre
      les deux. */
   S.gemThresholdMult = {};
-  ['fureur','fracture','murmure','derive','attente','vestige'].forEach(id=>{ S.gemThresholdMult[id] = 0.5 + Math.random()*1.3; });
+  ['fureur','fracture','murmure','derive','attente','vestige'].forEach(id=>{ S.gemThresholdMult[id] = Math.exp((Math.random()*2-1)*Math.log(10)); });
+  /* Chaque Gemme a sa propre fortune, tiree independamment a chaque partie : de 10x plus facile
+     a 10x plus dure a faire apparaitre, et un gardien plus ou moins coriace. */
+  S.gemFightMult = {};
+  ['fureur','fracture','murmure','derive','attente','vestige'].forEach(id=>{ S.gemFightMult[id] = Math.exp((Math.random()*2-1)*Math.log(1.6)); });
   S.hpBaseline = null; // les PV repartent de la condition de debut de carriere
   S.firstMissionStarted = false; // le bouton simulation reste cache tant que le dossier de bienvenue n'est pas passe
   S.romanceMax = 1 + (Math.random()<0.70?1:0) + (Math.random()<0.40?1:0);
@@ -12001,7 +12011,7 @@ function startBattle(mission, done){
       rend le gardien plus fort. La 6e est la plus dure, mais jamais infranchissable. */
   const stoneFight = !!(mission && (mission.eclatQuest || mission.eclatReclaim));
   const stoneOwnedCount = stoneFight ? (S.eclats||[]).length : 0;
-  const stoneHpMult = stoneFight ? Math.min(1.55, 0.90 + stoneOwnedCount*0.11) : 1;
+  const stoneHpMult = stoneFight ? Math.min(1.55, 0.90 + stoneOwnedCount*0.11) * gemFightMultOf(mission) : 1;
   const foeMaxHp = vormirMirror ? myMaxHP : Math.round(combatMaxHp(foeKey) * stoneHpMult);
   const foeRosterRaw = [{ isPlayer:false, key:foeKey, name:foeName, col:foeCol, img:foe.img, hp:foeMaxHp, maxHp:foeMaxHp, ko:false }]
     .concat(foeExtras.map(e=>Object.assign({ isPlayer:false }, e)));
@@ -12748,7 +12758,7 @@ function startBattle(mission, done){
       setTimeout(runTurn, wait(900));
       return;
     }
-    const stoneDmgMult = stoneFight ? Math.min(1.45, 0.92 + stoneOwnedCount*0.09) : 1;
+    const stoneDmgMult = stoneFight ? Math.min(1.45, 0.92 + stoneOwnedCount*0.09) * Math.sqrt(gemFightMultOf(S.currentMission)) : 1;
     const d = dmgOf(m, combatAttackPower(actor.key), strMult(actor.key) * stoneDmgMult);
     const targetAllyIdx = pickAllyTarget(idx);
     const dApplied = dealToAlly(targetAllyIdx, d, actor.col) ?? d;
