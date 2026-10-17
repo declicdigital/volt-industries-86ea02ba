@@ -8519,8 +8519,6 @@ function recruitCandidates(){
   });
 }
 function shouldTriggerMentor(){
-  /* Filet : meme sans choix de formation, une carriere installee finit par attirer des recrues. */
-  if(!S.mentorEligible && S.currentYear >= 6){ S.mentorEligible = true; S.mentorCap = Math.max(2, Math.round(((S.years||20)/10) * 2)); }
   if(!S.mentorEligible) return false;
   if(S.currentYear < 5) return false;
   if(S.mentorCount >= (S.mentorCap!=null ? S.mentorCap : 1)) return false;
