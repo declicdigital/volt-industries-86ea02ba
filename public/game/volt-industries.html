@@ -8266,7 +8266,7 @@ function buildCareerPlan(){
      vrais choix de protection/formation faits en jeu (voir feedMentorProgress) - certaines
      carrieres y arriveront vite si le joueur s'oriente dans ce sens, d'autres jamais si le joueur
      ne fait jamais ce genre de choix, mais ca ne depend plus jamais du hasard pur. */
-  S.mentorEligible = false; S.mentorProgress = 0; S.mentorThreshold = 6 + Math.floor(Math.random()*5);
+  S.mentorEligible = false; S.mentorProgress = 0; S.mentorThreshold = 2 + Math.floor(Math.random()*3);
   S.mentorCap = 0;
   S.startAge = 22 + randInt(0,6); S.extensions = 0;
   S.lastMentorYear = null; S.lastArcYear = null; S.mentees = [];
@@ -8512,19 +8512,21 @@ function recruitCandidates(){
   const side = recruitSideKey();
   const leaders = ['theg','siddartha'];
   return ROOKIE_KEYS.filter(k=>{
-    if(k===S.playerCharKey || taken.includes(k) || leaders.includes(k)) return false;
+    if(k===S.playerCharKey || taken.includes(k) || leaders.includes(k) || isCharDead(k)) return false;
     if(S.romance && S.romance.active && S.romance.charKey===k) return false;
     if(playerIsIndependent()) return CHARACTERS[k] && (CHARACTERS[k].align==='hero' || CHARACTERS[k].align==='villain');
     return CHARACTERS[k] && CHARACTERS[k].align===side;
   });
 }
 function shouldTriggerMentor(){
+  /* Filet : meme sans choix de formation, une carriere installee finit par attirer des recrues. */
+  if(!S.mentorEligible && S.currentYear >= 6){ S.mentorEligible = true; S.mentorCap = Math.max(2, Math.round(((S.years||20)/10) * 2)); }
   if(!S.mentorEligible) return false;
   if(S.currentYear < 5) return false;
   if(S.mentorCount >= (S.mentorCap!=null ? S.mentorCap : 1)) return false;
   if(S.lastMentorYear!=null && (S.currentYear - S.lastMentorYear) < 2) return false;
   if(!recruitCandidates().length) return false;
-  return Math.random() < 0.46;
+  return Math.random() < 0.55;
 }
 /* Merite l'eligibilite au mentorat par de vrais choix de protection/formation en jeu, plutot que
    par un tirage au sort a l'ouverture de la carriere. Une fois le seuil atteint, le plafond de
@@ -8534,7 +8536,7 @@ function feedMentorProgress(ctx){
   S.mentorProgress = (S.mentorProgress||0) + 1;
   if(S.mentorProgress >= (S.mentorThreshold||8)){
     S.mentorEligible = true;
-    S.mentorCap = Math.max(1, Math.round((S.years/10) * 2));
+    S.mentorCap = Math.max(2, Math.round((S.years/10) * 2));
   }
 }
 /* Entrainements et suivis : plusieurs etapes par recrue, tres regulierement. */
