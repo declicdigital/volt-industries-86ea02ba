@@ -4572,8 +4572,8 @@ function playerStrength(){
   if(S.team) s += 2 + (S.team.tier||1);
   return Math.round(clamp(s, 10, 110));
 }
-/* Vrai ou faux : une epreuve de Gemme est en cours (quete ou reconquete). Pendant celle-ci, le
-   gardien neutralise les Gemmes deja obtenues - elles ne donnent aucun coup au joueur. */
+/* Vrai ou faux : une epreuve de Gemme est en cours (quete ou reconquete). Pendant celle-ci, chaque
+   Gemme deja obtenue ne peut servir qu'une seule fois dans le combat (voir consumeShardMove). */
 function gemTrialActive(){
   const m = S.currentMission;
   return !!(m && (m.eclatQuest || m.eclatReclaim));
@@ -4592,8 +4592,8 @@ function foeStrength(foeKey, mission){
   /* Gardiens de Gemme : le premier combat est neutre (cible 50/50), chaque Gemme deja en poche
       rend le gardien plus coriace. La progression reste gagnable : la 6e est un boss final, pas un mur. */
   const ownedGemCount = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? (S.eclats||[]).length : 0;
-  /* En parallele, tes propres Gemmes sont neutralisees pendant ces epreuves (voir
-     gemTrialActive/playerMoves) : elles ne peuvent plus rendre la collection de plus en plus facile. */
+  /* En parallele, tes propres Gemmes ne peuvent servir qu'une fois chacune pendant ces epreuves
+     (voir gemTrialActive/consumeShardMove) : elles ne rendent plus la collection de plus en plus facile. */
   const stoneBonus = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? ownedGemCount*6 : 0;
   return Math.round(charTier(foeKey)*0.9 + danger*3 + scope*1 + (tier-24)*0.8 + rivalBonus + stoneBonus);
 }
@@ -6059,7 +6059,7 @@ function announceCombatReason(mission){
   } else if(mission.eclatQuest || mission.eclatReclaim){
     const shard = ECLATS.find(e=>e.id===(mission.eclatQuest||mission.eclatReclaim));
     const ownedN = (S.eclats||[]).length;
-    const seal = ownedN ? (fr ? ` Le gardien scelle tes ${ownedN} Gemme${ownedN>1?'s':''} : tu affrontes ce combat sans leur pouvoir.` : ` The guardian seals your ${ownedN} Gem${ownedN>1?'s':''}: you fight this one without their power.`) : '';
+    const seal = ownedN ? (fr ? ` Le gardien limite tes ${ownedN} Gemme${ownedN>1?'s':''} : chacune ne peut servir qu'une fois pendant ce combat.` : ` The guardian limits your ${ownedN} Gem${ownedN>1?'s':''}: each can be used only once during this fight.`) : '';
     msg = (fr ? `${n} se dresse entre toi et ${shard?shard.frName:"la Gemme"}.` : `${n} stands between you and ${shard?shard.enName:"the Gem"}.`) + seal;
   } else if(k===S.rivalKey){
     msg = fr ? `${n} - ton rival - te retrouve encore une fois.` : `${n} - your rival - finds you once again.`;
@@ -10626,9 +10626,9 @@ function playerMoves(){
      a part entiere, au meme titre que les autres - ils ne s'ajoutent plus par-dessus sans limite,
      ils prennent leur place dans le total plafonne ci-dessous, en priorite (ce sont les coups les
      plus rares et les plus puissants). */
-  /* Epreuve de Gemme : les Gemmes deja en poche sont neutralisees par le gardien - impossible de
-     conquerir une Gemme avec le pouvoir des precedentes. */
-  const shardMoves = gemTrialActive() ? [] : (S.eclats||[]).map(id=>{
+  /* Les Gemmes obtenues donnent leur coup dans tous les combats, epreuves de Gemme comprises -
+     mais pendant une epreuve, chacune ne peut servir qu'une fois (voir consumeShardMove). */
+  const shardMoves = (S.eclats||[]).map(id=>{
     const s = ECLATS.find(e=>e.id===id); if(!s) return null;
     return Object.assign({ shard:true, shardId:s.id, shardCol:s.col, shardCol2:s.col2, shardName: S.lang==='fr'?s.frName:s.enName }, s.move);
   }).filter(Boolean);
@@ -10653,13 +10653,13 @@ function playerMoves(){
   S._moveCandidates = { atk:priorityAtk, def:priorityDef, maxTotal, minDef };
   /* Tirage au sort du combat en cours : les 4 coups ont ete piochés aleatoirement par
      rollBattleLoadout() - on se contente de les resoudre ici. */
-  if(S.battleLoadout && S.battleLoadout.length && !gemTrialActive()){
+  if(S.battleLoadout && S.battleLoadout.length){
     const all = priorityAtk.concat(priorityDef);
     const sel = S.battleLoadout.map(n=>all.find(m=>m.fr===n)).filter(Boolean);
     if(sel.length) return sel;
   }
-  /* Epreuve de Gemme : on recompose un arsenal complet sans Gemme, pour que le tirage habituel
-     (qui garantissait les coups de Gemme) ne laisse pas le joueur avec deux coups seulement. */
+  /* Pas de tirage enregistre (ou epreuve de Gemme) : on recompose un arsenal complet, Gemmes
+     en tete, pour que le joueur ait toujours son arsenal au complet. */
   const defWanted = Math.max(minDef, maxTotal - priorityAtk.length);
   const defOut = []; priorityDef.forEach(m=>{ if(defOut.length<defWanted && defOut.length<maxTotal && !defOut.some(x=>x.fr===m.fr)) defOut.push(m); });
   while(defOut.length<minDef) defOut.push(charPool ? charPool.def[defOut.length%charPool.def.length] : DEFENSE_MOVES_BY_POWER.regen[defOut.length%2]);
@@ -12768,9 +12768,12 @@ function startBattle(mission, done){
       + (m.heal ? (S.lang==='fr'?` Il recupere ${m.heal} PV.`:` He recovers ${m.heal} HP.`) : ''));
     setTimeout(runTurn, wait(950));
   }
-  /* Une Gemme d'Infinite ne peut servir qu'une seule fois par combat : son coup disparait apres
-     usage et laisse place a un coup classique, pour ne jamais descendre sous 4 coups jouables. */
+  /* Hors epreuve de Gemme, une Gemme se reutilise librement tout au long du combat et ne
+     disparait jamais. Pendant une epreuve de Gemme seulement, chaque Gemme ne peut servir
+     qu'une fois : son coup s'eteint alors et laisse place a un coup classique, pour ne jamais
+     descendre sous 4 coups jouables. */
   function consumeShardMove(mv){
+    if(!gemTrialActive()) return;
     const idx = myMoves.findIndex(m=>m.fr===mv.fr); if(idx<0) return;
     const cand = S._moveCandidates || { atk:[], def:[] };
     const pool = (mv.heal ? (cand.def||[]).concat(cand.atk||[]) : (cand.atk||[]).concat(cand.def||[]))
