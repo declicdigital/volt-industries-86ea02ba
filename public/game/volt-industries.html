@@ -12783,7 +12783,13 @@ function startBattle(mission, done){
       const basic = mv.heal ? (DEFENSE_MOVES_BY_POWER.regen||[]) : (BASIC_MOVES||[]);
       repl = basic.find(m=>m && !myMoves.some(x=>x.fr===m.fr));
     }
-    if(repl) myMoves.splice(idx, 1, repl); else myMoves.splice(idx, 1);
+    /* Dernier recours : arsenal entierement epuise - on forge une variante du coup de base pour
+       garantir qu'il reste toujours au moins 4 coups jouables. */
+    if(!repl){
+      const src = (mv.heal ? (DEFENSE_MOVES_BY_POWER.regen||[])[0] : BASIC_MOVES[0]) || {fr:'Frappe',en:'Strike',p:20,acc:.9};
+      repl = Object.assign({}, src, { fr: src.fr+' II', en: (src.en||src.fr)+' II' });
+    }
+    myMoves.splice(idx, 1, repl);
     if(S.battleLoadout) S.battleLoadout = myMoves.map(m=>m.fr);
     setLog(S.lang==='fr'
       ? `${mv.shardName||'La Gemme'} s'eteint : son pouvoir ne peut servir qu'une fois par combat.`
