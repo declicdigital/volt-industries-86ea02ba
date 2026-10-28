@@ -8755,7 +8755,8 @@ function eclatCtxFromChoice(choice, extra){
   if(/negoc|corromp|piege|mentir|manipul|trahi|bluff|deceive|corrupt|trap|lie|betray/.test(t)) ctx.deceit = true;
   if(/attendre|patien|observer|etudier|analyser|preparer|study|wait|observe|analyz|prepare/.test(t)) ctx.patient = true;
   if(/sacrifi|proteger|sauver|epargner|jurer|promettre|sacrific|protect|save|spare|vow/.test(t)) ctx.sacrifice = true;
-  if(/\b(former|formation|guider|enseigner|transmettre|mentor|train|teach|guide|nurture)\b|prendre sous (ton|son) aile|take.*under.*wing|\b(proteger|sauver|protect|save)\b|coordonner.*equipes|coordinate.*teams|organiser l'evacuation|organize the evacuation/.test(t)) ctx.mentorLean = true;
+  const mentorTxt = (((choice&&choice.fr)||'') + ' ' + ((choice&&choice.en)||'').replace(/\bformer\b/gi, '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if(/\b(former|formation|guider|enseigner|transmettre|mentor|train|teach|guide|nurture)\b|prendre sous (ton|son) aile|take.*under.*wing|\b(proteger|sauver|protect|save)\b|coordonner.*equipes|coordinate.*teams|organiser l'evacuation|organize the evacuation/.test(mentorTxt)) ctx.mentorLean = true;
   return ctx;
 }
 function eclatResLeader(excludeVestige){
