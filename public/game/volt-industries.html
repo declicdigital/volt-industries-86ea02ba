@@ -12036,7 +12036,12 @@ function startBattle(mission, done){
   const stoneFight = !!(mission && (mission.eclatQuest || mission.eclatReclaim));
   const stoneScaling = gemTrialScaling(mission);
   const stoneHpMult = stoneScaling.hp;
-  const foeMaxHp = vormirMirror ? myMaxHP : Math.round(combatMaxHp(foeKey) * stoneHpMult);
+  /* Epreuve de Gemme : le gardien est calibre sur TON niveau, pas sur les stats propres du
+     personnage qui porte la pierre - sinon une gardienne naturellement fragile rend l'epreuve
+     triviale et un gardien naturellement tank la rend impossible. Le personnage reste le
+     visage du gardien ; la difficulte, elle, vient de la progression et du tirage propre a
+     chaque Gemme. */
+  const foeMaxHp = vormirMirror ? myMaxHP : (stoneFight ? Math.round(myMaxHP * stoneHpMult) : Math.round(combatMaxHp(foeKey) * stoneHpMult));
   const foeRosterRaw = [{ isPlayer:false, key:foeKey, name:foeName, col:foeCol, img:foe.img, hp:foeMaxHp, maxHp:foeMaxHp, ko:false }]
     .concat(foeExtras.map(e=>Object.assign({ isPlayer:false }, e)));
   allyRosterRaw.forEach(e=>{ e.spd = spdFor(e); }); foeRosterRaw.forEach(e=>{ e.spd = spdFor(e); });
@@ -12783,7 +12788,11 @@ function startBattle(mission, done){
       return;
     }
     const stoneDmgMult = stoneScaling.damage;
-    const d = dmgOf(m, combatAttackPower(actor.key), strMult(actor.key) * stoneDmgMult);
+    /* Meme logique que les PV : en epreuve de Gemme, la puissance de frappe du gardien est
+       calibree sur ton propre niveau, pas sur la Force naturelle du personnage. */
+    const atkBase = stoneFight ? combatAttackPower(S.playerCharKey) : combatAttackPower(actor.key);
+    const strBase = stoneFight ? strMult(S.playerCharKey) : strMult(actor.key);
+    const d = dmgOf(m, atkBase, strBase * stoneDmgMult);
     const targetAllyIdx = pickAllyTarget(idx);
     const dApplied = dealToAlly(targetAllyIdx, d, actor.col) ?? d;
     if(m.heal){ actor.hp = Math.min(actor.maxHp, actor.hp + m.heal); refreshEntry('foe', idx); }
