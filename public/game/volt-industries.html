@@ -2826,6 +2826,8 @@ const CHOICE_PHRASES_VILLAIN = {
     {fr:"Terroriser assez fort pour qu'on cesse de te chercher", en:"Terrorize hard enough that they stop looking for you"},
   ], VILLAIN_TAILS),
   calculating: expandPhrases([
+    {fr:"Former tes agents a executer le plan sans erreur", en:"Train your operatives to execute the plan without mistakes"},
+    {fr:"Guider une jeune recrue pendant l'operation", en:"Guide a young recruit through the operation"},
     {fr:"Calculer chaque etape pour maximiser les degats sans te compromettre", en:"Calculate every step to maximize damage without compromising yourself"},
     {fr:"Utiliser {t} comme diversion pour un objectif plus vaste", en:"Use {t} as a diversion for a larger goal"},
     {fr:"Manipuler les evenements depuis l'ombre", en:"Manipulate events from the shadows"},
@@ -4609,7 +4611,7 @@ function winOdds(foeKey, mission){
       reste toujours a portee. */
   if(mission && (mission.eclatQuest || mission.eclatReclaim)){
     const ownedGemCount = (S.eclats||[]).length;
-    return clamp((0.50 - ownedGemCount*0.06) / gemFightMultOf(mission), 0.10, 0.92);
+    return clamp((0.50 - ownedGemCount*0.06) / gemFightMultOf(mission), 0.18, 0.92);
   }
   /* Courbe moderee : assez raide pour que l'ecart de force compte vraiment, sans punir trop
       durement un ecart modeste. Plafond de victoire remonte legerement (91%) : une victoire tres
@@ -8529,6 +8531,7 @@ function recruitCandidates(){
   });
 }
 function shouldTriggerMentor(){
+  normalizeMentorEligibility();
   if(!S.mentorEligible) return false;
   if(S.currentYear < 5) return false;
   if(S.mentorCount >= (S.mentorCap!=null ? S.mentorCap : 1)) return false;
@@ -8539,10 +8542,19 @@ function shouldTriggerMentor(){
 /* Merite l'eligibilite au mentorat par de vrais choix de protection/formation en jeu, plutot que
    par un tirage au sort a l'ouverture de la carriere. Une fois le seuil atteint, le plafond de
    recrues se calcule alors, comme avant. */
+function normalizeMentorEligibility(){
+  /* Les sauvegardes anciennes gardent leurs choix merites, mais pas l'ancien seuil 6-10. */
+  S.mentorThreshold = clamp(S.mentorThreshold || 3, 2, 4);
+  if((S.mentorProgress||0) >= S.mentorThreshold) S.mentorEligible = true;
+  if(S.mentorEligible){
+    S.mentorCap = Math.max(S.mentorCap||0, 2, Math.round((S.years/10) * 2));
+  }
+}
 function feedMentorProgress(ctx){
+  normalizeMentorEligibility();
   if(S.mentorEligible || !ctx || !ctx.mentorLean) return;
   S.mentorProgress = (S.mentorProgress||0) + 1;
-  if(S.mentorProgress >= (S.mentorThreshold||8)){
+  if(S.mentorProgress >= S.mentorThreshold){
     S.mentorEligible = true;
     S.mentorCap = Math.max(2, Math.round((S.years/10) * 2));
   }
@@ -8738,12 +8750,13 @@ function feedEclatResonance(eff, ctx){
 /* Detecte l'intention d'un choix depuis son libelle, pour nourrir le bon domaine. */
 function eclatCtxFromChoice(choice, extra){
   const txt = ((choice&&choice.fr)||'') + ' ' + ((choice&&choice.en)||'');
-  const t = txt.toLowerCase();
+  const t = txt.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   const ctx = Object.assign({}, extra||{});
   if(/negoc|corromp|piege|mentir|manipul|trahi|bluff|deceive|corrupt|trap|lie|betray/.test(t)) ctx.deceit = true;
   if(/attendre|patien|observer|etudier|analyser|preparer|study|wait|observe|analyz|prepare/.test(t)) ctx.patient = true;
   if(/sacrifi|proteger|sauver|epargner|jurer|promettre|sacrific|protect|save|spare|vow/.test(t)) ctx.sacrifice = true;
-  if(/former|formation|guider|enseigner|transmettre|prendre sous ton aile|prendre sous son aile|mentor|train|teach|guide|mentor|nurture|take.*under.*wing/.test(t)) ctx.mentorLean = true;
+  const mentorTxt = (((choice&&choice.fr)||'') + ' ' + ((choice&&choice.en)||'').replace(/\bformer\b/gi, '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  if(/\b(former|formation|guider|enseigner|transmettre|mentor|train|teach|guide|nurture)\b|prendre sous (ton|son) aile|take.*under.*wing|\b(proteger|sauver|protect|save)\b|coordonner.*equipes|coordinate.*teams|organiser l'evacuation|organize the evacuation/.test(mentorTxt)) ctx.mentorLean = true;
   return ctx;
 }
 function eclatResLeader(excludeVestige){
@@ -11574,6 +11587,17 @@ function combatMaxHp(k){
   return Math.round(softStart + excess*0.3);
 }
 function combatAttackPower(k){ return Math.round((55 + currentStrength(k)*3) * recruitPenaltyMult(k)); }
+/* On compense les bonus passifs conserves par le joueur AVANT d'ajouter la difficulte.
+   Le hasard reste propre a chaque Gemme : un autre detenteur peut rester plus facile. */
+function gemTrialScaling(mission){
+  if(!mission || !(mission.eclatQuest || mission.eclatReclaim)) return {hp:1, damage:1};
+  const count = clamp((S.eclats||[]).length, 0, 5);
+  const variation = gemFightMultOf(mission);
+  return {
+    hp: 0.90 * (1 + count*0.14) * (1 + count*0.10) * variation,
+    damage: 0.92 * (1 + count*0.15) * (1 + count*0.08) * Math.sqrt(variation)
+  };
+}
 /* IQ de combat d'un personnage par sa cle. Recrues et inconnus : 5 (moyenne). */
 function iqOfKey(k){
   const c = k ? CHARACTERS[k] : null;
@@ -12010,8 +12034,8 @@ function startBattle(mission, done){
   /* Combat de Gemme : la premiere epreuve est neutre (cible 50/50), chaque Gemme deja en poche
       rend le gardien plus fort. La 6e est la plus dure, mais jamais infranchissable. */
   const stoneFight = !!(mission && (mission.eclatQuest || mission.eclatReclaim));
-  const stoneOwnedCount = stoneFight ? (S.eclats||[]).length : 0;
-  const stoneHpMult = stoneFight ? Math.min(1.55, 0.90 + stoneOwnedCount*0.11) * gemFightMultOf(mission) : 1;
+  const stoneScaling = gemTrialScaling(mission);
+  const stoneHpMult = stoneScaling.hp;
   const foeMaxHp = vormirMirror ? myMaxHP : Math.round(combatMaxHp(foeKey) * stoneHpMult);
   const foeRosterRaw = [{ isPlayer:false, key:foeKey, name:foeName, col:foeCol, img:foe.img, hp:foeMaxHp, maxHp:foeMaxHp, ko:false }]
     .concat(foeExtras.map(e=>Object.assign({ isPlayer:false }, e)));
@@ -12758,7 +12782,7 @@ function startBattle(mission, done){
       setTimeout(runTurn, wait(900));
       return;
     }
-    const stoneDmgMult = stoneFight ? Math.min(1.45, 0.92 + stoneOwnedCount*0.09) * Math.sqrt(gemFightMultOf(S.currentMission)) : 1;
+    const stoneDmgMult = stoneScaling.damage;
     const d = dmgOf(m, combatAttackPower(actor.key), strMult(actor.key) * stoneDmgMult);
     const targetAllyIdx = pickAllyTarget(idx);
     const dApplied = dealToAlly(targetAllyIdx, d, actor.col) ?? d;
