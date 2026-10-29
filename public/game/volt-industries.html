@@ -14977,6 +14977,7 @@ function screenEnd(){
       <div style="display:flex; justify-content:center; margin-bottom:10px;">${factionEmblemSVG(S.team.side, S.team.tier, 84) || factionEmblemSVG(S.team.side, 5, 84)}</div>
       <div class="tname" style="color:${charColor(S.team.side)}; text-shadow:0 0 20px ${charColor(S.team.side)};">${teamNameEnd}</div></div>` : ''}
     <p class="lead" style="margin-top:14px;">${S.lang==='fr'?'Alignement final':'Final alignment'}: <b>${alignLabel}</b></p>
+    ${(S.newUnlocks && S.newUnlocks.length) ? `<div class="team-hero-banner" style="border-color:var(--accent);"><div class="tname" style="color:var(--accent);">${isFr?'Nouveaux personnages debloques':'New characters unlocked'}</div><p class="lead" style="margin:8px auto 0;">${S.newUnlocks.map(id=>{ const p=SELECTABLE_PRESETS.find(x=>x.id===id); const c=p&&CHARACTERS[p.charKey]; return c?(isFr?c.fr:c.en):(p?(isFr?p.nameFr:p.nameEn):id); }).join(' &middot; ')}</p></div>` : ''}
     <h2 style="margin-top:20px;">${t('fullReportTitle')}</h2>
     ${kpiHtml}${kpiHtml2}${locBreak}${menteeDetail}${fallenAllies}${fallenFoes}${eclatsDetail}
     <h3>${isFr?'Note de carriere':'Career rating'}</h3>${scoreHtml}
