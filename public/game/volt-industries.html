@@ -1413,10 +1413,16 @@
       function(){ return purge('volt:career_state:'); },
       function(){ return purge('volt:career:'); }
     ];
+    /* Les etats complets d'anciennes carrieres (les plus lourds) peuvent etre purges jusqu'au
+       bout ; le journal leger n'est ecourte qu'une fois. Sans ca, la progression (deblocages)
+       pouvait cesser d'etre enregistree quand l'appareil etait plein. */
     for(var r=0;r<rounds.length;r++){
-      var removed = rounds[r]();
-      if(!removed) continue;
-      try{ attempt(); return true; }catch(e2){}
+      var guard = r===0 ? 40 : 1;
+      while(guard-- > 0){
+        var removed = rounds[r]();
+        if(!removed) break;
+        try{ attempt(); return true; }catch(e2){}
+      }
     }
     return false;
   };
@@ -7148,25 +7154,29 @@ async function saveMetaProgress(){
 /* Appele une seule fois par carriere terminee, depuis screenEnd. */
 function recordCareerForMeta(){
   if(S.metaRecorded) return; S.metaRecorded = true;
+  /* Snapshot par carriere : une carriere prolongee (+5 ans) est re-enregistree a sa nouvelle fin,
+     mais seuls les gains depuis le dernier enregistrement s'ajoutent (pas de double comptage). */
+  const snap = S.metaSnap || (S.metaSnap = {});
+  const addD = (k, v)=>{ v = Number(v)||0; const d = v - (snap[k]||0); if(d>0) META[k] = (META[k]||0) + d; snap[k] = Math.max(snap[k]||0, v); };
+  const unlockedBefore = unlockedPresetIds();
   /* La sauvegarde de la progression (et donc le deblocage du codex) ne doit jamais dependre du
      bon deroulement de TOUS les calculs de statistiques ci-dessous : si l'un d'eux plante pour une
      raison quelconque, on veut quand meme enregistrer ce qui a pu etre calcule avant, plutot que de
      perdre silencieusement le deblocage de cette carriere entiere. */
   try{
-  META.careersCompleted = (META.careersCompleted||0) + 1;
+  addD('careersCompleted', 1);
   const years = S.dead ? (S.deathInfo?S.deathInfo.year:S.currentYear) : (S.missionsPlan?S.missionsPlan.length:S.currentYear);
   META.longestCareerYears = Math.max(META.longestCareerYears||0, years||0);
   META.bestStars = Math.max(META.bestStars||0, computeStars());
   /* Deux nouvelles dimensions de suivi, jamais utilisees jusqu'ici : le total cumule (pas le
      meilleur d'une seule carriere) d'etoiles et d'annees, toutes carrieres confondues. */
-  META.totalStarsEarned = (META.totalStarsEarned||0) + computeStars();
-  META.totalYearsLived = (META.totalYearsLived||0) + (S.dead ? (S.deathInfo?S.deathInfo.year:S.currentYear) : (S.missionsPlan?S.missionsPlan.length:S.currentYear));
+  addD('totalStarsEarned', computeStars());
   if(S.eighthStar) META.got8thStar = true;
   if(S.voidCompletionDone) META.gotVoidCompletion = true;
-  META.totalFightsWon = (META.totalFightsWon||0) + (S.combat.won||0);
-  META.totalBetrayals = (META.totalBetrayals||0) + (S.turningPoints?S.turningPoints.length:0);
+  addD('totalFightsWon', S.combat.won||0);
+  addD('totalBetrayals', S.turningPoints?S.turningPoints.length:0);
   /* Compteurs des 62 objectifs individuels de deblocage. */
-  META.totalMenteesTrained = (META.totalMenteesTrained||0) + (S.mentees?S.mentees.length:0);
+  addD('totalMenteesTrained', S.mentees?S.mentees.length:0);
   /* Bug corrige : ce compteur n'etait jamais incremente nulle part, meme si le bilan de fin de
      carriere affichait bien un nombre de lieux sauves. On reutilise ici la meme logique de comptage
      (dedoublonnage par lieu, ne garder que ceux marques "saved") pour rester coherent avec l'affichage. */
@@ -7174,8 +7184,8 @@ function recordCareerForMeta(){
   const uniqueLocsForMeta = {};
   (S.locations||[]).forEach(l=>{ const key=l.type+':'+l.name; if(!uniqueLocsForMeta[key] || l.kind==='destroyed') uniqueLocsForMeta[key]=l; });
   const savedCount = Object.values(uniqueLocsForMeta).filter(l=>l.kind==='saved' || (!l.kind && finalZoneForLocs!=='villain')).length;
-  META.totalCivilsSaved = (META.totalCivilsSaved||0) + savedCount;
-  META.totalSideSwitches = (META.totalSideSwitches||0) + (S.turningPoints?S.turningPoints.length:0);
+  addD('totalCivilsSaved', savedCount);
+  addD('totalSideSwitches', S.turningPoints?S.turningPoints.length:0);
   META.bestGemsCount = Math.max(META.bestGemsCount||0, (S.eclats?S.eclats.length:0));
   META.distinctFactionsJoined = META.distinctFactionsJoined || [];
   if(S.team && S.team.side && S.team.tier){
@@ -7189,30 +7199,30 @@ function recordCareerForMeta(){
      (S.romanceHistory||[]).some(r=>(r.love||0) > 0 || (r.outcome && r.outcome!=='refus'))) && !S.romanceCounted){
     S.romanceCounted = true; META.everHadRomance = true; metaBump('romanceCount');
   }
-  if(S.team){ META.everJoinedFaction = true; metaBump('factionJoins'); }
-  if(S.customFactions && S.customFactions.length){ META.everFoundedFaction = true; metaBump('factionsFounded'); }
-  if(S.mentees && S.mentees.length){ META.everHadMentee = true; metaBump('menteeCount'); }
-  if(S.eclats && S.eclats.length){ META.everGotGem = true; metaBump('gemCount'); META.careersWithGem = (META.careersWithGem||0) + 1; }
-  if((S.rivalAltercations||0) > 0 || (S.rivalClimaxReady===false && S.rivalKey)){ META.everSurvivedRivalClash = true; metaBump('rivalClashes'); }
-  if(S.eighthStar) metaBump('star8Count');
+  if(S.team){ META.everJoinedFaction = true; addD('factionJoins', 1); }
+  if(S.customFactions && S.customFactions.length){ META.everFoundedFaction = true; addD('factionsFounded', 1); }
+  if(S.mentees && S.mentees.length){ META.everHadMentee = true; addD('menteeCount', 1); }
+  if(S.eclats && S.eclats.length){ META.everGotGem = true; addD('gemCount', 1); addD('careersWithGem', 1); }
+  if((S.rivalAltercations||0) > 0 || (S.rivalClimaxReady===false && S.rivalKey)){ META.everSurvivedRivalClash = true; addD('rivalClashes', 1); }
+  if(S.eighthStar) addD('star8Count', 1);
   /* Compteurs a vie supplementaires, utilises par les trophees. */
   const fightsLost = S.combat.lost||0, fightsWon = S.combat.won||0;
   const missions = (S.missionsPlan?S.missionsPlan.length:0) || years || 0;
   const skills = (S.skills||[]).length, gems = (S.eclats||[]).length, mentees = (S.mentees||[]).length;
   const stars = computeStars();
   const st = S.stats||{};
-  META.totalFightsLost = (META.totalFightsLost||0) + fightsLost;
-  META.totalMissions = (META.totalMissions||0) + missions;
-  META.totalYearsLived = (META.totalYearsLived||0) + (years||0);
-  META.totalSkillsLearned = (META.totalSkillsLearned||0) + skills;
+  addD('totalFightsLost', fightsLost);
+  addD('totalMissions', missions);
+  addD('totalYearsLived', years||0);
+  addD('totalSkillsLearned', skills);
   META.maxSkillsInCareer = Math.max(META.maxSkillsInCareer||0, skills);
-  META.totalMentees = (META.totalMentees||0) + mentees;
+  addD('totalMentees', mentees);
   META.maxMenteesInCareer = Math.max(META.maxMenteesInCareer||0, mentees);
   META.maxGemsInCareer = Math.max(META.maxGemsInCareer||0, gems);
-  META.totalGemsFound = (META.totalGemsFound||0) + gems;
-  META.totalCosmicWins = (META.totalCosmicWins||0) + (S.cosmicWins||0);
-  META.totalMultiverseWins = (META.totalMultiverseWins||0) + (S.trueCosmicWins||0);
-  META.totalDeaths = (META.totalDeaths||0) + (S.dead?1:0);
+  addD('totalGemsFound', gems);
+  addD('totalCosmicWins', S.cosmicWins||0);
+  addD('totalMultiverseWins', S.trueCosmicWins||0);
+  addD('totalDeaths', S.dead?1:0);
   META.bestAlignGood = Math.max(META.bestAlignGood||0, S.align||0);
   META.bestAlignEvil = Math.min(META.bestAlignEvil||0, S.align||0);
   META.bestCourage = Math.max(META.bestCourage||0, st.courage||0);
@@ -7220,15 +7230,15 @@ function recordCareerForMeta(){
   META.bestPopularity = Math.max(META.bestPopularity||0, st.popularity||0);
   META.maxLove = Math.max(META.maxLove||0, (S.romance&&S.romance.love)||0,
     ...(S.romanceHistory||[]).map(r=>r.love||0));
-  META.heroCareers = (META.heroCareers||0) + ((S.align||0) > 20 ? 1 : 0);
-  META.villainCareers = (META.villainCareers||0) + ((S.align||0) < -20 ? 1 : 0);
-  META.neutralCareers = (META.neutralCareers||0) + (Math.abs(S.align||0) <= 20 ? 1 : 0);
-  META.survivedCareers = (META.survivedCareers||0) + (S.dead?0:1);
-  if(fightsWon>=5 && fightsLost===0) META.flawlessCareers = (META.flawlessCareers||0) + 1;
-  if(stars>=5) META.starFiveCareers = (META.starFiveCareers||0) + 1;
-  if(stars>=7) META.starSevenCareers = (META.starSevenCareers||0) + 1;
-  if(years>=40) META.marathonCareers = (META.marathonCareers||0) + 1;
-  if((S.turningPoints||[]).length===0) META.loyalCareers = (META.loyalCareers||0) + 1;
+  addD('heroCareers', (S.align||0) > 20 ? 1 : 0);
+  addD('villainCareers', (S.align||0) < -20 ? 1 : 0);
+  addD('neutralCareers', Math.abs(S.align||0) <= 20 ? 1 : 0);
+  addD('survivedCareers', S.dead?0:1);
+  if(fightsWon>=5 && fightsLost===0) addD('flawlessCareers', 1);
+  if(stars>=5) addD('starFiveCareers', 1);
+  if(stars>=7) addD('starSevenCareers', 1);
+  if(years>=40) addD('marathonCareers', 1);
+  if((S.turningPoints||[]).length===0) addD('loyalCareers', 1);
   META.locationsEver = META.locationsEver || [];
   (S.locations||[]).forEach(l=>{ const n=l&&l.name; if(n && !META.locationsEver.includes(n)) META.locationsEver.push(n); });
   META.charactersPlayed = META.charactersPlayed || [];
@@ -7238,6 +7248,7 @@ function recordCareerForMeta(){
   if(computeStars()>=6 || S.eighthStar || S.voidCompletionDone){
     META.ngPlusBonus = { fromHero:S.heroName, fromYears:years, fromStars:computeStars() };
   }
+  try{ S.newUnlocks = unlockedPresetIds().filter(id=>!unlockedBefore.includes(id)); }catch(e){ S.newUnlocks = []; }
   }catch(e){ console.error('recordCareerForMeta : erreur en cours de calcul, sauvegarde quand meme de ce qui a ete enregistre jusque-la', e); }
   saveMetaProgress();
 }
@@ -14826,6 +14837,7 @@ function extendCareer(extra){
   if(S.dead) return;
   S.extensions = (S.extensions||0) + 1;
   S.savedToHistory = false;
+  S.metaRecorded = false;
   for(let i=0;i<extra;i++) S.missionsPlan.push(3);
   S.years = S.missionsPlan.length;
   S.mode = S.years <= 12 ? 'short' : 'long';
@@ -14837,9 +14849,9 @@ function extendCareer(extra){
   nextMission();
 }
 function screenEnd(){
-  saveCareerToHistory();
-  recordCareerForMeta();
   clearGameState();
+  recordCareerForMeta();
+  saveCareerToHistory();
   const d = document.createElement('div');
   const topRelKey = Object.keys(S.rel).reduce((a,b)=> (S.rel[b]>S.rel[a] ? b : a), Object.keys(S.rel)[0]);
   const topRel = CHARACTERS[topRelKey];
@@ -14965,6 +14977,7 @@ function screenEnd(){
       <div style="display:flex; justify-content:center; margin-bottom:10px;">${factionEmblemSVG(S.team.side, S.team.tier, 84) || factionEmblemSVG(S.team.side, 5, 84)}</div>
       <div class="tname" style="color:${charColor(S.team.side)}; text-shadow:0 0 20px ${charColor(S.team.side)};">${teamNameEnd}</div></div>` : ''}
     <p class="lead" style="margin-top:14px;">${S.lang==='fr'?'Alignement final':'Final alignment'}: <b>${alignLabel}</b></p>
+    ${(S.newUnlocks && S.newUnlocks.length) ? `<div class="team-hero-banner" style="border-color:var(--accent);"><div class="tname" style="color:var(--accent);">${isFr?'Nouveaux personnages debloques':'New characters unlocked'}</div><p class="lead" style="margin:8px auto 0;">${S.newUnlocks.map(id=>{ const p=SELECTABLE_PRESETS.find(x=>x.id===id); const c=p&&CHARACTERS[p.charKey]; return c?(isFr?c.fr:c.en):(p?(isFr?p.nameFr:p.nameEn):id); }).join(' &middot; ')}</p></div>` : ''}
     <h2 style="margin-top:20px;">${t('fullReportTitle')}</h2>
     ${kpiHtml}${kpiHtml2}${locBreak}${menteeDetail}${fallenAllies}${fallenFoes}${eclatsDetail}
     <h3>${isFr?'Note de carriere':'Career rating'}</h3>${scoreHtml}
