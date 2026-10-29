@@ -1413,10 +1413,16 @@
       function(){ return purge('volt:career_state:'); },
       function(){ return purge('volt:career:'); }
     ];
+    /* Les etats complets d'anciennes carrieres (les plus lourds) peuvent etre purges jusqu'au
+       bout ; le journal leger n'est ecourte qu'une fois. Sans ca, la progression (deblocages)
+       pouvait cesser d'etre enregistree quand l'appareil etait plein. */
     for(var r=0;r<rounds.length;r++){
-      var removed = rounds[r]();
-      if(!removed) continue;
-      try{ attempt(); return true; }catch(e2){}
+      var guard = r===0 ? 40 : 1;
+      while(guard-- > 0){
+        var removed = rounds[r]();
+        if(!removed) break;
+        try{ attempt(); return true; }catch(e2){}
+      }
     }
     return false;
   };
