@@ -4609,10 +4609,11 @@ function gemFightMultOf(mission){
   const id = mission && (typeof mission.eclatQuest==='string' ? mission.eclatQuest : (typeof mission.eclatReclaim==='string' ? mission.eclatReclaim : null));
   if(!id) return 1;
   /* Tirage frais a CHAQUE combat de Gemme (plus de cache par carriere) : le gardien peut etre
-     aussi fort que toi, plus faible ou plus fort, sur une echelle CONTINUE de x0.667 a x1.5.
-     Le nombre est reel (jamais arrondi) : x1.4578, x0.7297... autant de valeurs que de decimales,
-     donc des millions de possibilites, et deux combats pour la meme Gemme ne se ressemblent pas. */
-  return Math.exp((Math.random()*2-1)*Math.log(1.5));
+     aussi fort que toi, plus faible ou plus fort, sur une echelle CONTINUE de x0.833 a x1.2
+     (de 1.2x moins fort a 1.2x plus fort). Le nombre est reel (jamais arrondi) : x1.1578,
+     x0.9297... autant de valeurs que de decimales, donc des millions de possibilites, et deux
+     combats pour la meme Gemme ne se ressemblent pas. */
+  return Math.exp((Math.random()*2-1)*Math.log(1.2));
 }
 function winOdds(foeKey, mission){
   /* Epreuves de Gemme : le premier combat vise 50/50, chaque Gemme deja gagnee rend le gardien
