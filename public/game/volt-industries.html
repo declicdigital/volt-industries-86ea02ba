@@ -4620,7 +4620,8 @@ function winOdds(foeKey, mission){
       reste toujours a portee. */
   if(mission && (mission.eclatQuest || mission.eclatReclaim)){
     const ownedGemCount = (S.eclats||[]).length;
-    return clamp((0.50 - ownedGemCount*0.06) / gemFightMultOf(mission), 0.18, 0.92);
+    /* Palier obligatoire : -8% de chances par Gemme deja en poche, en plus du tirage aleatoire. */
+    return clamp((0.50 - ownedGemCount*0.08) / gemFightMultOf(mission), 0.18, 0.92);
   }
   /* Courbe moderee : assez raide pour que l'ecart de force compte vraiment, sans punir trop
       durement un ecart modeste. Plafond de victoire remonte legerement (91%) : une victoire tres
@@ -11607,9 +11608,12 @@ function gemTrialScaling(mission){
   if(!mission || !(mission.eclatQuest || mission.eclatReclaim)) return {hp:1, damage:1};
   const count = clamp((S.eclats||[]).length, 0, 5);
   const variation = gemFightMultOf(mission);
+  /* Palier OBLIGATOIRE par Gemme deja en poche : +22% de PV et +16% de degats par Gemme,
+     en plus de la compensation des bonus passifs et du tirage aleatoire. Meme avec un tirage
+     favorable, la 2e epreuve reste plus dure que la 1re, la 3e que la 2e, etc. */
   return {
-    hp: 0.90 * (1 + count*0.14) * (1 + count*0.10) * variation,
-    damage: 0.92 * (1 + count*0.15) * (1 + count*0.08) * Math.sqrt(variation)
+    hp: 0.90 * (1 + count*0.14) * (1 + count*0.22) * variation,
+    damage: 0.92 * (1 + count*0.15) * (1 + count*0.16) * Math.sqrt(variation)
   };
 }
 /* IQ de combat d'un personnage par sa cle. Recrues et inconnus : 5 (moyenne). */
