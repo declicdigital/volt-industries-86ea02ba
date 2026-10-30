@@ -63,6 +63,20 @@ test('each successive gem trial grows after compensating player passive gem bonu
   assert.equal(g.gemTrialScaling({type:'combat'}).hp,1);
   assert.equal(g.gemTrialScaling({type:'combat'}).damage,1);
 });
+test('mandatory per-gem step: each owned gem adds at least 22 percent hp and 16 percent damage', () => {
+  const g = game({eclats:[]});
+  g.Math.random = () => 0.5; // tirage neutre : seul le palier obligatoire compte
+  let prev = null;
+  for(let n=0;n<=5;n++) {
+    g.S.eclats = Array(n).fill('owned');
+    const s = g.gemTrialScaling({eclatQuest:'derive'});
+    if(prev) {
+      assert.ok(s.hp / prev.hp >= 1.22 - 1e-9, `hp step at ${n} gems: ${s.hp / prev.hp}`);
+      assert.ok(s.damage / prev.damage >= 1.16 - 1e-9, `damage step at ${n} gems: ${s.damage / prev.damage}`);
+    }
+    prev = s;
+  }
+});
 test('first trial has 50/50 baseline and even the hardest auto trial retains 18 percent', () => {
   const g = game({eclats:[]});
   g.Math.random = () => 0.5; // multiplicateur x1
