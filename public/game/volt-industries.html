@@ -4607,9 +4607,12 @@ function foeStrength(foeKey, mission){
 }
 function gemFightMultOf(mission){
   const id = mission && (typeof mission.eclatQuest==='string' ? mission.eclatQuest : (typeof mission.eclatReclaim==='string' ? mission.eclatReclaim : null));
-  const T = S.gemFightMult || (S.gemFightMult = {});
-  if(id && T[id]==null) T[id] = Math.exp((Math.random()*2-1)*Math.log(1.6));
-  return id ? T[id] : 1;
+  if(!id) return 1;
+  /* Tirage frais a CHAQUE combat de Gemme (plus de cache par carriere) : le gardien peut etre
+     aussi fort que toi, plus faible ou plus fort, sur une echelle CONTINUE de x0.667 a x1.5.
+     Le nombre est reel (jamais arrondi) : x1.4578, x0.7297... autant de valeurs que de decimales,
+     donc des millions de possibilites, et deux combats pour la meme Gemme ne se ressemblent pas. */
+  return Math.exp((Math.random()*2-1)*Math.log(1.5));
 }
 function winOdds(foeKey, mission){
   /* Epreuves de Gemme : le premier combat vise 50/50, chaque Gemme deja gagnee rend le gardien
@@ -8274,9 +8277,8 @@ function buildCareerPlan(){
   S.gemThresholdMult = {};
   ['fureur','fracture','murmure','derive','attente','vestige'].forEach(id=>{ S.gemThresholdMult[id] = Math.exp((Math.random()*2-1)*Math.log(10)); });
   /* Chaque Gemme a sa propre fortune, tiree independamment a chaque partie : de 10x plus facile
-     a 10x plus dure a faire apparaitre, et un gardien plus ou moins coriace. */
-  S.gemFightMult = {};
-  ['fureur','fracture','murmure','derive','attente','vestige'].forEach(id=>{ S.gemFightMult[id] = Math.exp((Math.random()*2-1)*Math.log(1.6)); });
+     a 10x plus dure a faire apparaitre. La force du gardien, elle, n'est plus tiree ici : elle
+     l'est a chaque combat de Gemme (voir gemFightMultOf), sur une echelle continue. */
   S.hpBaseline = null; // les PV repartent de la condition de debut de carriere
   S.firstMissionStarted = false; // le bouton simulation reste cache tant que le dossier de bienvenue n'est pas passe
   S.romanceMax = 1 + (Math.random()<0.70?1:0) + (Math.random()<0.40?1:0);
