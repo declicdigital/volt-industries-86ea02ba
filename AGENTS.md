@@ -11,3 +11,4 @@
 
 - Keep gameplay in the standalone iframe HTML and test its extracted logic with Node's test runner; this preserves the existing game structure without coupling tests to the React wrapper.
 - Gem trial scaling must compensate retained player passive bonuses before applying progression; per-Gem career randomness remains independent of collection order.
+- Career meta progress is recorded through a per-career snapshot (`S.metaSnap`) so extended careers re-record only their gains; this keeps unlocks accurate without double counting.
