@@ -7,3 +7,4 @@
 - [x] Mobile : pages contenues dans l'écran, radio et bouton Simuler déplaçables avec position persistante
 - [x] Fiche mobile : retirer les 4 barres de stats + doublon du nom de faction, remonter infos et pierres sous l'incubateur
 - [x] Son : ne démarre que via le bouton son ; muet = vraie pause, jamais de relance automatique au clic
+- [x] Déblocages : carrières prolongées comptées, pas de double comptage, progression sauvegardée même mémoire pleine
