@@ -93,7 +93,7 @@ test('guardian strength is redrawn every gem fight on a continuous scale', () =>
   const draws = new Set();
   for(let i=0;i<300;i++) {
     const m = g.gemFightMultOf({eclatQuest:'derive'});
-    assert.ok(m >= 1/1.5 && m <= 1.5, `draw ${m} within x0.667..x1.5`);
+    assert.ok(m >= 1/1.2 && m <= 1.2, `draw ${m} within x0.833..x1.2`);
     draws.add(m);
   }
   assert.ok(draws.size > 250, `continuous draws: ${draws.size} distinct values out of 300`);
