@@ -11601,7 +11601,8 @@ function combatMaxHp(k){
 }
 function combatAttackPower(k){ return Math.round((55 + currentStrength(k)*3) * recruitPenaltyMult(k)); }
 /* On compense les bonus passifs conserves par le joueur AVANT d'ajouter la difficulte.
-   Le hasard reste propre a chaque Gemme : un autre detenteur peut rester plus facile. */
+   Le hasard est tire a chaque combat (gemFightMultOf) : un meme detenteur peut etre plus
+   facile ou plus dur d'un combat a l'autre. */
 function gemTrialScaling(mission){
   if(!mission || !(mission.eclatQuest || mission.eclatReclaim)) return {hp:1, damage:1};
   const count = clamp((S.eclats||[]).length, 0, 5);
