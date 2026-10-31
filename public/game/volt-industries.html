@@ -13338,11 +13338,12 @@ function resolveOutcome(mission){
         jarvisSay(S.lang==='fr'?`${holderName} garde toujours ${shard.frName}. Cette manche est perdue.`:`${holderName} still holds ${shard.enName}. This round is lost.`,
                   S.lang==='fr'?`${holderName} garde toujours ${shard.frName}. Cette manche est perdue.`:`${holderName} still holds ${shard.enName}. This round is lost.`, S.lang==='fr'?'reprise manquee':'reclaim failed');
       }
-    } else if(false){ /* Une Gemme ne se perd jamais lors d'un combat ordinaire. */
+    } else if(!win && (S.eclats||[]).length && !mission.forceDuel && !mission.isTraining && Math.random() < 0.12){ /* Defaite dans un combat ordinaire : 12% de chances de perdre une Gemme. */
       // Un combat ordinaire perdu peut aussi couter un eclat : l'adversaire te le vole pendant que tu es a terre.
       const idx = Math.floor(Math.random()*S.eclats.length);
       const stolenId = S.eclats.splice(idx,1)[0];
       const stolenShard = ECLATS.find(e=>e.id===stolenId);
+      try{ S.battleLoadout = null; syncBattleLoadout(); }catch(e){}
       const thief = S.lastBattleFoeKey;
       if(stolenShard){
         S.eclatHolders = S.eclatHolders || {};
