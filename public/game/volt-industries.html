@@ -4615,7 +4615,7 @@ function playerStrength(){
    Gemme deja obtenue ne peut servir qu'une seule fois dans le combat (voir consumeShardMove). */
 function gemTrialActive(){
   const m = S.currentMission;
-  return !!(m && (m.eclatQuest || m.eclatReclaim));
+  return !!(m && (m.eclatQuest || m.eclatReclaim || m.vormirSoul));
 }
 function foeStrength(foeKey, mission){
   const mv = (typeof foeMovesFor === 'function') ? foeMovesFor(foeKey) : [];
@@ -12024,7 +12024,7 @@ const FOEASSIST_EN = ["{n} hits you from behind", "{n} joins the melee and clips
     </div>`;
   }
 function startBattle(mission, done){
-  S._battleIsGemTrial = !!(mission && (mission.eclatQuest || mission.eclatReclaim));
+  S._battleIsGemTrial = !!(mission && (mission.eclatQuest || mission.eclatReclaim || mission.vormirSoul)); // Vormir (Pierre de l'Ame) compte aussi : chaque Gemme n'y sert qu'une fois
   syncLiveAligns(); /* les cadres et faisceaux du combat suivent le camp actuel de chacun */
   AudioEngine.setMode('combat');
   const foeKey = battleFoeKey(mission);
