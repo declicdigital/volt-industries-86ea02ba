@@ -12741,7 +12741,7 @@ function startBattle(mission, done){
         return;
       }
       st.exposedNext = true;
-      setLog(S.lang==='fr'?`L'illusion de ${myName} se dissipe - ${foeName} le repere et se prepare a frapper !`:`${myName}'s illusion fades - ${foeName} spots him and moves in for the kill!`);
+      setLog(S.lang==='fr'?`TENTATIVE ECHOUEE - l'illusion de ${myName} se dissipe, ${foeName} le repere et se prepare a frapper !`:`ATTEMPT FAILED - ${myName}'s illusion fades, ${foeName} spots him and moves in for the kill!`);
       renderMoves();
       setTimeout(()=>{ runTurn(); }, wait(1000));
       return;
