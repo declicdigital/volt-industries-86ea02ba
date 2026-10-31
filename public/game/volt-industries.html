@@ -11146,10 +11146,22 @@ function showBattleAftermath(html, col, cb){
 }
 function applyBattleAftermath(win, foeName, hpLeftPct, cb, playerWasKO, fled){
   const f = battleForm();
+  if(fled){
+    /* Disparition volontaire : ni victoire ni defaite. L'elan, la serie, la reputation et la
+       progression des Gemmes restent exactement comme avant le combat - rien n'est gagne, rien n'est perdu. */
+    const col = '#9aa7b8';
+    const title = S.lang==='fr'?'DISPARITION - COMBAT EVITE':'VANISHED - FIGHT AVOIDED';
+    const body = S.lang==='fr'
+      ? `Tu as quitte le combat avant que ${foeName} ne puisse t'atteindre. Ni victoire ni defaite : ton elan, ta serie et ton dossier restent intacts.`
+      : `You left the fight before ${foeName} could reach you. Neither a win nor a loss: your momentum, streak and record stay untouched.`;
+    S.currentYearEntries.push({ tag:(S.lang==='fr'?`Disparition face a ${foeName}`:`Vanished from ${foeName}`), location:null, type:'combat', outcome:'fled' });
+    showBattleAftermath(`<div class="ru-title" style="color:${col};font-size:12px;letter-spacing:2px;">${title}</div><p style="margin-top:12px;line-height:1.6;">${body}</p>`, col, cb);
+    return;
+  }
   /* Serie de victoires personnelles ininterrompue pour la Puissance : etre porte par l'equipe
      alors que tu es tombe ne compte pas comme une victoire a toi, seule une vraie victoire
      debout la nourrit - toute autre issue la remet a zero. */
-  try{ feedPowerStreak(!!(win && !playerWasKO)); }catch(e){ console.error('Gemme Pouvoir : echec', e); }
+  try{ if(!fled) feedPowerStreak(!!(win && !playerWasKO)); }catch(e){ console.error('Gemme Pouvoir : echec', e); }
   if(win && playerWasKO){
     /* Tu es tombe pendant ce combat, meme si ton equipe a fini par l'emporter sans toi : ça ne
        peut pas etre une victoire "propre" comme les autres - pas d'elan gagne, une vraie
@@ -11186,19 +11198,6 @@ function applyBattleAftermath(win, foeName, hpLeftPct, cb, playerWasKO, fled){
   }
   f.streak = 0;
   f.momentum = 0;
-  if(fled){
-    /* Repli volontaire : pas de blessure ni de passage aux urgences, mais ce n'est pas une victoire. */
-    S.stats.courage = clamp(S.stats.courage - 1, 0, 100);
-    S.stats.popularity = clamp(S.stats.popularity - 1, 0, 100);
-    const col = '#9aa7b8';
-    const title = S.lang==='fr'?'REPLI - TU AS DISPARU':'RETREAT - YOU VANISHED';
-    const body = S.lang==='fr'
-      ? `Tu as quitte le combat avant que ${foeName} ne puisse t'atteindre. Aucune blessure, mais aucune victoire non plus : ton elan retombe a zero.`
-      : `You left the fight before ${foeName} could reach you. No injury, but no victory either: your momentum drops to zero.`;
-    S.currentYearEntries.push({ tag:(S.lang==='fr'?`Repli face a ${foeName}`:`Retreat from ${foeName}`), location:null, type:'combat', outcome:'lose' });
-    showBattleAftermath(`<div class="ru-title" style="color:${col};font-size:12px;letter-spacing:2px;">${title}</div><p style="margin-top:12px;line-height:1.6;">${body}</p>`, col, cb);
-    return;
-  }
   const r = Math.random();
   let sev, battles, label, days;
   if(r < 0.45){ sev = 1; battles = 1; days = 4 + Math.floor(Math.random()*10); label = S.lang==='fr'?`${days} jours d'arret`:`${days} days off`; }
@@ -12711,7 +12710,7 @@ function startBattle(mission, done){
     if(st.busy || st.vanishUsed) return;
     st.busy = true; setMovesEnabled(false);
     st.vanishUsed = true; st.playerActs = (st.playerActs||0) + 1;
-    const noEscape = !!(mission && (mission.eclatQuest || mission.eclatReclaim || mission.vormirSoul || mission.forceDuel || mission.isTraining));
+    const noEscape = !(mission && mission.fleeOk) || !!(mission.eclatQuest || mission.eclatReclaim || mission.vormirSoul || mission.forceDuel || mission.isTraining);
     if(!noEscape){
       if(Math.random() < vanishEscapeChance()){
         st.fled = true;
@@ -12740,7 +12739,7 @@ function startBattle(mission, done){
     clearInterval(watchdogTimer);
     st.busy = true; setMovesEnabled(false);
     /* Reputation par faction : vaincre ou perdre contre un membre affecte ce que sa faction pense de toi. */
-    if(foeKey && CHARACTERS[foeKey]){
+    if(foeKey && CHARACTERS[foeKey] && !st.fled){
       factionRepAdjust(canonName(foeKey), win ? -2 : 2);
     }
     if(win && foeKey && S.rivalKey && foeKey===S.rivalKey){
@@ -12780,7 +12779,7 @@ function startBattle(mission, done){
       ov.classList.add('btl-out');
       setTimeout(()=>{
         ov.remove();
-        applyBattleAftermath(win, foeName, hpPct, ()=>{ renderRankBadge(); done(win, foeKey, permaDeath); }, playerWasKO, !!st.fled);
+        applyBattleAftermath(win, foeName, hpPct, ()=>{ renderRankBadge(); done(st.fled ? 'fled' : win, foeKey, permaDeath); }, playerWasKO, !!st.fled);
       }, wait(450));
     }, wait(1500));
   }
@@ -13041,7 +13040,14 @@ function afterMissionRender(mission){
   if(shouldBattle(mission)){
     S.pendingBattleWin = null;
     try{ announceCombatReason(mission); }catch(e){}
+    mission.fleeOk = true; // seul ce combat de mission standard autorise la disparition de Loki
     const launch = ()=> startBattle(mission, (win, foeKey, permaDeath)=>{ S.pendingBattleWin = win; S.lastBattleFoeKey = foeKey;
+      if(win==='fled'){
+        jarvisSay("Tu t'es volatilise. Aucune perte, aucun gain : on reprend a froid.","You vanished. No loss, no gain - we pick it back up cold.", S.lang==='fr'?'disparition':'vanished');
+        safeTriggerConversation();
+        if(S.careerAuto) autoCareerStep();
+        return;
+      }
       if(permaDeath || S.dead){
         S.yearsHistory.push({ year:S.currentYear, entries:S.currentYearEntries.slice(), endAlign:S.align }); S.currentYearEntries = [];
         S.screen='end'; render(); return;
@@ -13232,6 +13238,7 @@ function resolveOutcome(mission){
   const pl = computePowerLevel(); const type = mission.type || 'social'; let outcome = null;
   const scopePenalty = ((mission.scope||1)-1) * 0.06;
   const hadEighthBefore = S.eighthStar;
+  if(type==='combat' && S.pendingBattleWin==='fled'){ S.pendingBattleWin = null; return { type:'combat', outcome:'fled' }; }
   if(type==='combat'){ const winProb = clamp(0.42 + (S.stats.courage-50)/320 + pl/380 - scopePenalty, 0.08, 0.88); const win = (S.pendingBattleWin===true||S.pendingBattleWin===false) ? S.pendingBattleWin : (Math.random() < winProb); S.pendingBattleWin = null; if(win) S.combat.won++; else S.combat.lost++; outcome = win ? 'win' : 'lose'; try{ if(win) feedEclatResonance({}, { battleWin:true, scope:mission.scope||1 }); }catch(e){} if(win && (mission.scope||1)>=6) S.cosmicWins = (S.cosmicWins||0)+1; if(win && (mission.scope||1)>=7) S.trueCosmicWins = (S.trueCosmicWins||0)+1;
     if(mission.grandEvent && win){
       // Un evenement historique remporte compte pour plusieurs victoires a la fois : un vrai tournant de carriere.
@@ -13491,7 +13498,7 @@ function yearRecap(y){
   const h = S.yearsHistory[S.yearsHistory.length-1];
   const e = (h && h.entries) || [];
   let w=0,l=0,sv=0,fail=0;
-  e.forEach(x=>{ if(x.type==='combat'){ if(x.outcome==='win') w++; else l++; } else if(x.type==='rescue'){ if(x.outcome==='saved') sv++; else fail++; } });
+  e.forEach(x=>{ if(x.type==='combat'){ if(x.outcome==='win') w++; else if(x.outcome!=='fled') l++; } else if(x.type==='rescue'){ if(x.outcome==='saved') sv++; else fail++; } });
   const zone = zoneOf(S.align); const total = S.missionsPlan.length||10;
   const phase = y<=Math.max(2,Math.round(total*0.2)) ? 'debut' : (y>=total-1 ? 'fin' : 'milieu');
   const lines = [];
@@ -15102,7 +15109,7 @@ function screenEnd(){
     return `<div class="turn-item">${t('year')} ${tp.year}: ${fromL} -> ${toL}</div>`; }).join('') : `<p class="lead">${t('noTurning')}</p>`;
   const yearsHtml = S.yearsHistory.map(yh=>{ const zone = zoneOf(yh.endAlign); const col = zone==='hero'?'#00e5ff':(zone==='villain'?'var(--red)':'#b98bff');
     const missionsHtml = yh.entries.map(e=>{ if(e.type==='mentor'){ const lbl = e.outcome==='hero'? t('menteeHero') : e.outcome==='villain'? t('menteeVillain') : e.outcome==='died'? t('menteeDied') : t('menteeNeutral'); return `<div class="ymission">${t('mentorTag')} - ${lbl}</div>`; }
-      let outcomeLabel = ''; if(e.type==='combat') outcomeLabel = e.outcome==='win' ? t('combatOutcomeWin') : t('combatOutcomeLose'); else if(e.type==='rescue') outcomeLabel = e.outcome==='saved' ? t('rescueSaved') : t('rescueLost');
+      let outcomeLabel = ''; if(e.type==='combat') outcomeLabel = e.outcome==='win' ? t('combatOutcomeWin') : (e.outcome==='fled' ? (S.lang==='fr'?'Disparition':'Vanished') : t('combatOutcomeLose')); else if(e.type==='rescue') outcomeLabel = e.outcome==='saved' ? t('rescueSaved') : t('rescueLost');
       const locTxt = e.location ? ` - ${e.location.name} (${locTypeLabel(e.location.type)})` : ''; return `<div class="ymission">${e.tag}${locTxt}${outcomeLabel? ' - '+outcomeLabel:''}</div>`; }).join('');
     return `<details class="yearcard"><summary>${t('year')} ${yh.year} <span class="tag" style="background:${col}22; color:${col};">${zone==='hero'?t('alignHero'):(zone==='villain'?t('alignVillain'):t('alignNeutral'))}</span></summary>${missionsHtml}</details>`; }).join('');
   d.innerHTML = `
