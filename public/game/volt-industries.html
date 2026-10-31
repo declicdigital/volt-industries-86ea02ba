@@ -9155,8 +9155,13 @@ function startEclatReclaimQuest(){
       { fr:"Laisser filer - ce n'est plus une priorite pour l'instant.", en:"Let it go - not a priority right now.", eff:{align:-1} },
     ]
   };
-  S.currentMission = m; S.screen='mission'; render(); afterMissionRender(m);
+  m.stoneHerald = shard.id;
   S.lastEclatReclaimYear = S.currentYear;
+  S.careerAuto = false;
+  try{ renderCareerAutoWidget(); }catch(e){}
+  if(STONE_HERALDS[shard.id]){
+    showStoneHerald(shard.id, 'intro', holderName, ()=>{ S.currentMission = m; S.screen='mission'; render(); afterMissionRender(m); });
+  } else { S.currentMission = m; S.screen='mission'; render(); afterMissionRender(m); }
   return true;
 }
 /* Chaque eclat a sa propre identite visuelle de cinematique (icone + effet de fond), pour que les 6 se distinguent vraiment. */
@@ -12913,6 +12918,11 @@ function afterMissionRender(mission){
         S.yearsHistory.push({ year:S.currentYear, entries:S.currentYearEntries.slice(), endAlign:S.align }); S.currentYearEntries = [];
         S.screen='end'; render(); return;
       }
+      if(mission && (mission.eclatQuest || mission.eclatReclaim)){
+        /* Epreuve de Pierre : la cinematique d'apres-combat arrive tout de suite, sans question intermediaire. */
+        applyChoice({ fr:"Epreuve de la Pierre d'Infinite.", en:"Infinity Stone trial.", eff:{} });
+        return;
+      }
       if(win) jarvisSay("Cible neutralisee. J'enregistre la victoire dans ton dossier.","Target neutralized. Logging the win in your file.", S.lang==='fr'?'victoire confirmee':'win confirmed');
       else jarvisSay("Tu as perdu l'echange. Je stabilise tes constantes, on rejoue ca a froid.","You lost the exchange. Stabilizing your vitals - we'll review it cold.", S.lang==='fr'?'defaite enregistree':'loss logged');
       safeTriggerConversation();
@@ -13162,7 +13172,7 @@ function resolveOutcome(mission){
     } else if(mission.eclatReclaim){
       const shard = ECLATS.find(e=>e.id===mission.eclatReclaim);
       const holderKey = mission.charKey;
-      if(shard && win && Math.random() < 0.35){
+      if(shard && win){
         grantEclatShard(shard);
         if(STONE_HERALDS[shard.id]) S.pendingStoneHerald = shard.id;
       } else if(shard){
