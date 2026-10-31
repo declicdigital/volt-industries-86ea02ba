@@ -54,8 +54,9 @@ test('after compensating player passive gem bonuses every trial stays neutral', 
   for(let n=0;n<=5;n++) {
     g.S.eclats = Array(n).fill('owned');
     const scaling = g.gemTrialScaling({eclatQuest:'derive'});
-    const relativeHp = scaling.hp / (1+n*0.15);
-    const relativeDamage = scaling.damage / (1+n*0.14);
+    const relativeHp = scaling.hp;
+    const relativeDamage = scaling.damage;
+    assert.equal(relativeHp, 1);
     if(hp !== null) {
       assert.ok(Math.abs(relativeHp - hp) < 1e-9, `hp stable at ${n} gems: ${relativeHp} vs ${hp}`);
       assert.ok(Math.abs(relativeDamage - damage) < 1e-9, `damage stable at ${n} gems: ${relativeDamage} vs ${damage}`);

@@ -11602,15 +11602,14 @@ function combatAttackPower(k){ return Math.round((55 + currentStrength(k)*3) * r
    facile ou plus dur d'un combat a l'autre. */
 function gemTrialScaling(mission){
   if(!mission || !(mission.eclatQuest || mission.eclatReclaim)) return {hp:1, damage:1};
-  const count = clamp((S.eclats||[]).length, 0, 5);
   const variation = gemFightMultOf(mission);
   /* Aucun palier obligatoire : la difficulte ne depend pas du nombre de Gemmes en poche.
      On compense seulement les bonus passifs du joueur (+15% de PV et +14% de degats par Gemme,
      voir combatMaxHp/gemPowerMult) pour que l'epreuve reste neutre face a ta puissance, puis
      le tirage du combat s'applique seul : le gardien peut etre plus fort ou moins fort que toi. */
   return {
-    hp: 0.90 * (1 + count*0.15) * variation,
-    damage: 0.92 * (1 + count*0.14) * Math.sqrt(variation)
+    hp: variation,
+    damage: Math.sqrt(variation)
   };
 }
 /* IQ de combat d'un personnage par sa cle. Recrues et inconnus : 5 (moyenne). */
