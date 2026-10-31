@@ -1360,6 +1360,37 @@
     /* Radio et simulation flottent dans l'ecran mais restent librement repositionnables. */
     .career-auto-widget{ top:auto; bottom:calc(18px + env(safe-area-inset-bottom)); left:auto; right:10px; transform:none; }
   }
+
+.ssw-overlay{position:fixed;inset:0;z-index:9999;overflow:hidden;display:flex;align-items:center;justify-content:center;animation:sswIn .7s ease both}
+.ssw-overlay.out{animation:sswOut .6s ease forwards}
+.ssw-dark{background:#000;color:#f2e6e6}
+.ssw-light{background:#fff;color:#1a2433}
+.ssw-wash{position:absolute;inset:-20%;animation:sswPulse 4s ease-in-out infinite}
+.ssw-dark .ssw-wash{background:radial-gradient(circle at 50% 55%,rgba(150,0,10,.45),rgba(0,0,0,.95) 55%,#000 80%)}
+.ssw-light .ssw-wash{background:radial-gradient(circle at 50% 45%,#fff,rgba(220,235,255,.9) 45%,rgba(190,210,240,.8) 85%)}
+.ssw-burst{position:absolute;left:50%;top:50%;width:10px;height:10px;border-radius:50%;transform:translate(-50%,-50%);animation:sswBurst 1.6s cubic-bezier(.2,.8,.2,1) both}
+.ssw-dark .ssw-burst{box-shadow:0 0 0 0 #000,0 0 120px 60px rgba(200,0,20,.7)}
+.ssw-light .ssw-burst{box-shadow:0 0 160px 90px #fff,0 0 300px 160px rgba(160,200,255,.8)}
+.ssw-p{position:absolute;bottom:-5%;width:4px;height:4px;border-radius:50%;animation:sswRise linear infinite}
+.ssw-dark .ssw-p{background:#ff2a2a;box-shadow:0 0 8px #ff2a2a}
+.ssw-light .ssw-p{background:#fff;box-shadow:0 0 10px #9cc8ff}
+.ssw-wrap{position:relative;text-align:center;padding:20px;max-width:560px}
+.ssw-fig img{max-height:42vh;max-width:70vw;animation:sswFig 1.4s ease both}
+.ssw-dark .ssw-fig img{filter:brightness(.55) contrast(1.3) drop-shadow(0 0 24px rgba(255,20,30,.8))}
+.ssw-light .ssw-fig img{filter:brightness(1.1) drop-shadow(0 0 30px #fff) drop-shadow(0 0 14px #8cc0ff)}
+.ssw-kicker{font-size:11px;letter-spacing:6px;opacity:.7;margin-top:14px}
+.ssw-title{font-size:clamp(28px,7vw,54px);font-weight:900;letter-spacing:5px;animation:sswTitle 1.2s .3s ease both}
+.ssw-dark .ssw-title{color:#ff3b3b;text-shadow:0 0 22px rgba(255,0,0,.7)}
+.ssw-light .ssw-title{color:#2a6fd6;text-shadow:0 0 22px rgba(120,180,255,.8)}
+.ssw-sub{margin-top:8px;letter-spacing:2px;font-size:13px}
+.ssw-go{margin-top:22px;padding:10px 26px;letter-spacing:3px;font-weight:700;border-radius:4px;cursor:pointer;background:transparent;border:1px solid currentColor;color:inherit}
+@keyframes sswIn{from{opacity:0}to{opacity:1}}
+@keyframes sswOut{to{opacity:0}}
+@keyframes sswPulse{50%{transform:scale(1.08)}}
+@keyframes sswBurst{from{transform:translate(-50%,-50%) scale(.2);opacity:1}to{transform:translate(-50%,-50%) scale(6);opacity:.25}}
+@keyframes sswRise{to{transform:translate(var(--vx),-110vh);opacity:0}}
+@keyframes sswFig{from{opacity:0;transform:scale(1.15)}to{opacity:1;transform:none}}
+@keyframes sswTitle{from{opacity:0;letter-spacing:22px}to{opacity:1}}
 </style>
 </head>
 <body class="lab-scene">
@@ -5603,7 +5634,28 @@ function showSwitchAnnouncement(fromZone, toZone, cb){
   const html = `<div class="ru-title" style="color:${col}; font-size:12px; letter-spacing:2px;">${title}</div>
     ${betrayLine?`<p style="margin-top:12px; line-height:1.6;">${betrayLine}</p>`:''}
     ${welcomeLine?`<p style="margin-top:10px; line-height:1.6; color:${col};">${welcomeLine}</p>`:''}`;
-  showBattleAftermath(html, col, cb);
+  const after = ()=>showBattleAftermath(html, col, cb);
+  if(toZone==='villain' || toZone==='hero') showSideSwitchCinematic(toZone, after); else after();
+}
+/* Cinematique de bascule : noir d'encre et braises rouges vers VILLAIN, lumiere blanche vers HERO. */
+function showSideSwitchCinematic(toZone, cb){
+  const fr = S.lang==='fr', dark = toZone==='villain';
+  let img = ''; try{ img = heraldPortrait(S.playerCharKey) || ''; }catch(e){}
+  const name = (S.heroName || (CHARACTERS[S.playerCharKey] && (fr?CHARACTERS[S.playerCharKey].fr:CHARACTERS[S.playerCharKey].en)) || '').toUpperCase();
+  const parts = Array.from({length:34}, ()=>`<span class="ssw-p" style="left:${(Math.random()*100).toFixed(1)}%;animation-duration:${(3+Math.random()*4).toFixed(1)}s;animation-delay:${(-Math.random()*5).toFixed(1)}s;--vx:${(Math.random()*80-40).toFixed(0)}px;"></span>`).join('');
+  const ov = document.createElement('div');
+  ov.className = 'ssw-overlay ' + (dark ? 'ssw-dark' : 'ssw-light');
+  ov.innerHTML = `<div class="ssw-wash"></div><div class="ssw-burst"></div>${parts}
+    <div class="ssw-wrap">${img?`<div class="ssw-fig"><img src="${img}" alt=""></div>`:''}
+      <div class="ssw-kicker">${fr?'BASCULEMENT':'SIDE SWITCH'}</div>
+      <div class="ssw-title">${dark?(fr?'LE COTE OBSCUR':'THE DARK SIDE'):(fr?'LA LUMIERE':'THE LIGHT')}</div>
+      <div class="ssw-sub">${name} ${dark?(fr?'devient VILLAIN':'becomes a VILLAIN'):(fr?'devient HERO':'becomes a HERO')}</div>
+      <button class="ssw-go">${fr?'CONTINUER':'CONTINUE'}</button></div>`;
+  document.body.appendChild(ov);
+  try{ AudioEngine.playSting('gem'); }catch(e){}
+  let closed=false; const close=()=>{ if(closed) return; closed=true; ov.classList.add('out'); setTimeout(()=>{ ov.remove(); cb(); }, 600); };
+  ov.querySelector('.ssw-go').onclick = close;
+  if(S.careerAuto) setTimeout(close, 3600);
 }
 /* ---------- Ton ancien camp te rappelle parfois : force, faiblesse, ou tentative de recuperation ---------- */
 /* ---------- Altercations avec ton rival : hors combat, quelques lignes qui rappellent qu'il/elle existe ---------- */
