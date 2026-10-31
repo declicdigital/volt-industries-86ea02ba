@@ -4597,13 +4597,11 @@ function foeStrength(foeKey, mission){
      nettement plus faible que Doctor Doom, quelle que soit la difficulte de la mission en cours.
      Avant ce correctif, danger/scope pouvaient a eux seuls ajouter jusqu'a +46, ecrasant totalement
      la difference de puissance entre les personnages (qui ne pesait que +/-32). */
-  /* Gardiens de Gemme : le premier combat est neutre (cible 50/50), chaque Gemme deja en poche
-      rend le gardien plus coriace. La progression reste gagnable : la 6e est un boss final, pas un mur. */
-  const ownedGemCount = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? (S.eclats||[]).length : 0;
-  /* En parallele, tes propres Gemmes ne peuvent servir qu'une fois chacune pendant ces epreuves
-     (voir gemTrialActive/consumeShardMove) : elles ne rendent plus la collection de plus en plus facile. */
-  const stoneBonus = (mission && (mission.eclatQuest || mission.eclatReclaim)) ? ownedGemCount*6 : 0;
-  return Math.round(charTier(foeKey)*0.9 + danger*3 + scope*1 + (tier-24)*0.8 + rivalBonus + stoneBonus);
+  /* Gardiens de Gemme : aucune difficulte liee au nombre de Gemmes deja en poche. La
+     difficulte de l'epreuve vient uniquement du tirage propre a chaque combat (gemFightMultOf).
+     En parallele, tes propres Gemmes ne peuvent servir qu'une fois chacune pendant ces epreuves
+     (voir gemTrialActive/consumeShardMove). */
+  return Math.round(charTier(foeKey)*0.9 + danger*3 + scope*1 + (tier-24)*0.8 + rivalBonus);
 }
 function gemFightMultOf(mission){
   const id = mission && (typeof mission.eclatQuest==='string' ? mission.eclatQuest : (typeof mission.eclatReclaim==='string' ? mission.eclatReclaim : null));
@@ -4616,13 +4614,10 @@ function gemFightMultOf(mission){
   return Math.exp((Math.random()*2-1)*Math.log(1.2));
 }
 function winOdds(foeKey, mission){
-  /* Epreuves de Gemme : le premier combat vise 50/50, chaque Gemme deja gagnee rend le gardien
-      plus dur (-6% de chances par Gemme en poche), mais le plancher reste a 18% pour que la 6e
-      reste toujours a portee. */
+  /* Epreuve de Gemme : aucun palier lie aux Gemmes en poche. Cible 50/50 modulee uniquement
+     par le tirage du gardien (x0.833 a x1.2), re-tire a chaque combat de Gemme. */
   if(mission && (mission.eclatQuest || mission.eclatReclaim)){
-    const ownedGemCount = (S.eclats||[]).length;
-    /* Palier obligatoire : -8% de chances par Gemme deja en poche, en plus du tirage aleatoire. */
-    return clamp((0.50 - ownedGemCount*0.08) / gemFightMultOf(mission), 0.18, 0.92);
+    return clamp(0.50 / gemFightMultOf(mission), 0.18, 0.92);
   }
   /* Courbe moderee : assez raide pour que l'ecart de force compte vraiment, sans punir trop
       durement un ecart modeste. Plafond de victoire remonte legerement (91%) : une victoire tres
@@ -11609,12 +11604,13 @@ function gemTrialScaling(mission){
   if(!mission || !(mission.eclatQuest || mission.eclatReclaim)) return {hp:1, damage:1};
   const count = clamp((S.eclats||[]).length, 0, 5);
   const variation = gemFightMultOf(mission);
-  /* Palier OBLIGATOIRE par Gemme deja en poche : +22% de PV et +16% de degats par Gemme,
-     en plus de la compensation des bonus passifs et du tirage aleatoire. Meme avec un tirage
-     favorable, la 2e epreuve reste plus dure que la 1re, la 3e que la 2e, etc. */
+  /* Aucun palier obligatoire : la difficulte ne depend pas du nombre de Gemmes en poche.
+     On compense seulement les bonus passifs du joueur (+15% de PV et +14% de degats par Gemme,
+     voir combatMaxHp/gemPowerMult) pour que l'epreuve reste neutre face a ta puissance, puis
+     le tirage du combat s'applique seul : le gardien peut etre plus fort ou moins fort que toi. */
   return {
-    hp: 0.90 * (1 + count*0.14) * (1 + count*0.22) * variation,
-    damage: 0.92 * (1 + count*0.15) * (1 + count*0.16) * Math.sqrt(variation)
+    hp: 0.90 * (1 + count*0.15) * variation,
+    damage: 0.92 * (1 + count*0.14) * Math.sqrt(variation)
   };
 }
 /* IQ de combat d'un personnage par sa cle. Recrues et inconnus : 5 (moyenne). */
@@ -12050,8 +12046,8 @@ function startBattle(mission, done){
   }
   const allyRosterRaw = [{ isPlayer:true, key:null, name:myName, col:myCol, img:null, hp:myMaxHP, maxHp:myMaxHP, ko:false }]
     .concat(allyExtras.map(e=>Object.assign({ isPlayer:false }, e)));
-  /* Combat de Gemme : la premiere epreuve est neutre (cible 50/50), chaque Gemme deja en poche
-      rend le gardien plus fort. La 6e est la plus dure, mais jamais infranchissable. */
+  /* Combat de Gemme : epreuve neutre vis-a-vis de ta puissance (bonus passifs compenses),
+     modulee uniquement par le tirage du gardien a chaque combat (x0.833 a x1.2). */
   const stoneFight = !!(mission && (mission.eclatQuest || mission.eclatReclaim));
   const stoneScaling = gemTrialScaling(mission);
   const stoneHpMult = stoneScaling.hp;
