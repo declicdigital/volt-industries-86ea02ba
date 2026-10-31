@@ -8806,6 +8806,7 @@ function feedEclatResonance(eff, ctx){
   const aff = S.gemAffinity || {};
   if(ctx.deceit) gainEclatRes('fracture', 1 * (aff.fracture||1));
   if(ctx.patient) gainEclatRes('attente', 1 * (aff.attente||1));
+  if(ctx.time) gainEclatRes('attente', 0.5 * (aff.attente||1)); // choix qui parle du temps : passe, futur, duree, lignes temporelles
   if(ctx.investigation) gainEclatRes('murmure', (ctx.battleWin!==false ? 1 : 0.5) * (aff.murmure||1)); // une enquete ratee apprend quand meme
   /* L'Esprit se nourrit aussi de tout choix intellectuel : mots-cles mentaux, et gain d'intelligence. */
   if(ctx.mind) gainEclatRes('murmure', 1 * (aff.murmure||1));
@@ -8821,10 +8822,21 @@ function eclatCtxFromChoice(choice, extra){
   if(/negoc|corromp|piege|mentir|manipul|trahi|bluff|deceive|corrupt|trap|lie|betray/.test(t)) ctx.deceit = true;
   if(/attendre|patien|observer|etudier|analyser|preparer|study|wait|observe|analyz|prepare/.test(t)) ctx.patient = true;
   if(/sacrifi|proteger|sauver|epargner|jurer|promettre|sacrific|protect|save|spare|vow/.test(t)) ctx.sacrifice = true;
+  if(/temps|annee|longtemps|duree|futur|passe\b|chronolog|ligne temporelle|decennie|epoque|eternite|time|year|future|past|timeline|decade|era\b|eternity|temporal/.test(t)) ctx.time = true;
   if(/enquet|deduire|deduction|dechiffr|decoder|decrypt|infiltr|espionn|interrog|enigme|indice|preuve|secret|mental|psychi|telepath|memoire|conscience|souvenir|reve|hacker|pirater|donnees|dossier|cerveau|esprit|stratag|comprendre|reflechir|savoir|connaissance|archive|bibliotheque|investigat|clue|evidence|decipher|infiltrate|spy|interrogate|riddle|puzzle|mind|memor|brain|psychic|knowledge|understand|figure out|strateg/.test(t)) ctx.mind = true;
   const mentorTxt = (((choice&&choice.fr)||'') + ' ' + ((choice&&choice.en)||'').replace(/\bformer\b/gi, '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if(/\b(former|formation|guider|enseigner|transmettre|mentor|train|teach|guide|nurture)\b|prendre sous (ton|son) aile|take.*under.*wing|\b(proteger|sauver|protect|save)\b|coordonner.*equipes|coordinate.*teams|organiser l'evacuation|organize the evacuation/.test(mentorTxt)) ctx.mentorLean = true;
   return ctx;
+}
+/* La Gemme du Temps avance aussi avec les annees qui passent : un peu chaque annee, et un peu plus
+   a mesure que la carriere s'allonge (de 0.15 la 1re annee jusqu'a 0.40 vers la 40e), multiplie par
+   l'affinite de la carriere pour le Temps. Appele a chaque passage d'annee. */
+function feedTimeGemYear(){
+  try{
+    const y = S.currentYear || 1;
+    const amt = 0.15 + 0.25 * Math.min(1, y/40);
+    gainEclatRes('attente', amt * ((S.gemAffinity||{}).attente||1));
+  }catch(e){}
 }
 function eclatResLeader(excludeVestige){
   const res = ensureEclatRes();
@@ -13490,7 +13502,7 @@ function screenRetirementOffer(){
   };
   d.querySelector('#livePeace').onclick = ()=>{
     S.peacefulEra = true;
-    S.currentYear += 1; S.currentMissionInYear = 0;
+    S.currentYear += 1; S.currentMissionInYear = 0; feedTimeGemYear();
     if(S.currentYear > S.missionsPlan.length){ S.screen='careerDurationChoice'; render(); return; }
     nextMission();
   };
@@ -13530,7 +13542,7 @@ function screenYearBreak(){
     <p class="lead">${rec[0]}</p>
     ${rec.slice(1).map(x=>`<p class="lead" style="opacity:.82; font-size:.95em;">${x}</p>`).join('')}
     <div class="actions"><button class="btn cyan" id="go">${S.lang==='fr'?'Annee suivante':'Next year'} -></button></div>`;
-  d.querySelector('#go').onclick=()=>{ S.currentYear += 1; S.currentMissionInYear = 0;
+  d.querySelector('#go').onclick=()=>{ S.currentYear += 1; S.currentMissionInYear = 0; feedTimeGemYear();
     maybeOldSideReminder(); maybeTeamBetrayal(); maybeRivalAltercation(); checkMenteeGraduations();
     if(S.currentYear > S.missionsPlan.length){ S.screen='careerDurationChoice'; render(); return; } nextMission(); };
   return d;
