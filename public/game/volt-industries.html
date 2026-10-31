@@ -11967,6 +11967,7 @@ const FOEASSIST_EN = ["{n} hits you from behind", "{n} joins the melee and clips
     </div>`;
   }
 function startBattle(mission, done){
+  S._battleIsGemTrial = !!(mission && (mission.eclatQuest || mission.eclatReclaim));
   syncLiveAligns(); /* les cadres et faisceaux du combat suivent le camp actuel de chacun */
   AudioEngine.setMode('combat');
   const foeKey = battleFoeKey(mission);
@@ -12825,7 +12826,7 @@ function startBattle(mission, done){
      qu'une fois : son coup s'eteint alors et laisse place a un coup classique, pour ne jamais
      descendre sous 4 coups jouables. */
   function consumeShardMove(mv){
-    if(!gemTrialActive()) return;
+    if(!S._battleIsGemTrial) return;
     const idx = myMoves.findIndex(m=>m.fr===mv.fr); if(idx<0) return;
     const cand = S._moveCandidates || { atk:[], def:[] };
     const pool = (mv.heal ? (cand.def||[]).concat(cand.atk||[]) : (cand.atk||[]).concat(cand.def||[]))
@@ -13181,7 +13182,7 @@ function resolveOutcome(mission){
         jarvisSay(S.lang==='fr'?`${holderName} garde toujours ${shard.frName}. Cette manche est perdue.`:`${holderName} still holds ${shard.enName}. This round is lost.`,
                   S.lang==='fr'?`${holderName} garde toujours ${shard.frName}. Cette manche est perdue.`:`${holderName} still holds ${shard.enName}. This round is lost.`, S.lang==='fr'?'reprise manquee':'reclaim failed');
       }
-    } else if(!win && (S.eclats||[]).length && Math.random() < 0.12){
+    } else if(false){ /* Une Gemme ne se perd jamais lors d'un combat ordinaire. */
       // Un combat ordinaire perdu peut aussi couter un eclat : l'adversaire te le vole pendant que tu es a terre.
       const idx = Math.floor(Math.random()*S.eclats.length);
       const stolenId = S.eclats.splice(idx,1)[0];
