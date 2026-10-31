@@ -11642,9 +11642,17 @@ function recruitPenaltyMult(k){
   if(mentee && !mentee.graduated) return 0.8;
   return 1;
 }
+/* Robustesse d'un personnage (1-10) : un tout, pas seulement sa Resistance. Resistance 40%, Force 20%,
+   Vitesse 15%, QI 10% et sa puissance globale sur 100 (15%). La moyenne du roster reste la meme
+   qu'avec la seule Resistance, mais les ecarts extremes sont lisses : un personnage tres fort
+   partout n'est plus pénalise par une Resistance basse, et un fragile n'est plus ecrase. */
+function combatToughness(k){
+  const rating = clamp(charTier(k)/10, 1, 10);
+  return 0.40*currentRes(k) + 0.20*currentStrength(k) + 0.15*currentSpeed(k) + 0.10*currentIQ(k) + 0.15*rating;
+}
 function combatMaxHp(k){
   const gemCount = gemCountFor(k);
-  const base = (62 + currentRes(k)*7) * worldProgressMult() * primeEliteBonus(k) * recruitPenaltyMult(k);
+  const base = (62 + combatToughness(k)*7) * worldProgressMult() * primeEliteBonus(k) * recruitPenaltyMult(k);
   /* Bonus purement proportionnel (pas de montant fixe ajoute) : l'ecart entre un personnage
      modeste et un personnage au sommet de sa Prime reste globalement respecte meme une fois
      gemme a fond, plutot que tout le monde qui converge vers le meme chiffre. */
