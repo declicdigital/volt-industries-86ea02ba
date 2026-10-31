@@ -47,46 +47,39 @@ test('existing saves use earned progress with the 2-4 choice threshold', () => {
   assert.equal(g.shouldTriggerMentor(), true);
   assert.equal(g.S.mentorThreshold,4);
 });
-test('each successive gem trial grows after compensating player passive gem bonuses', () => {
+test('after compensating player passive gem bonuses every trial stays neutral', () => {
   const g = game({eclats:[]});
   g.Math.random = () => 0.5; // tirage neutre : multiplicateur exactement x1
-  let hp = 0, damage = 0;
+  let hp = null, damage = null;
   for(let n=0;n<=5;n++) {
     g.S.eclats = Array(n).fill('owned');
     const scaling = g.gemTrialScaling({eclatQuest:'derive'});
-    const relativeHp = scaling.hp / (1+n*0.14);
-    const relativeDamage = scaling.damage / (1+n*0.15);
-    assert.ok(relativeHp > hp);
-    assert.ok(relativeDamage > damage);
+    const relativeHp = scaling.hp / (1+n*0.15);
+    const relativeDamage = scaling.damage / (1+n*0.14);
+    if(hp !== null) {
+      assert.ok(Math.abs(relativeHp - hp) < 1e-9, `hp stable at ${n} gems: ${relativeHp} vs ${hp}`);
+      assert.ok(Math.abs(relativeDamage - damage) < 1e-9, `damage stable at ${n} gems: ${relativeDamage} vs ${damage}`);
+    }
     hp = relativeHp; damage = relativeDamage;
   }
   assert.equal(g.gemTrialScaling({type:'combat'}).hp,1);
   assert.equal(g.gemTrialScaling({type:'combat'}).damage,1);
 });
-test('mandatory per-gem step: each owned gem adds at least 22 percent hp and 16 percent damage', () => {
+test('no mandatory extra difficulty: win odds do not shrink as gems pile up', () => {
   const g = game({eclats:[]});
-  g.Math.random = () => 0.5; // tirage neutre : seul le palier obligatoire compte
-  let prev = null;
+  g.Math.random = () => 0.5; // tirage neutre : 50/50 a chaque epreuve
   for(let n=0;n<=5;n++) {
     g.S.eclats = Array(n).fill('owned');
-    const s = g.gemTrialScaling({eclatQuest:'derive'});
-    if(prev) {
-      /* Le palier se compose avec la compensation des bonus passifs : le ratio exact diminue
-         legerement vers la fin (1.39 a la 1re Gemme, ~1.217 a la 5e), mais reste toujours
-         au-dessus de +21% de PV et +16% de degats par Gemme. */
-      assert.ok(s.hp / prev.hp >= 1.21 - 1e-9, `hp step at ${n} gems: ${s.hp / prev.hp}`);
-      assert.ok(s.damage / prev.damage >= 1.16 - 1e-9, `damage step at ${n} gems: ${s.damage / prev.damage}`);
-    }
-    prev = s;
+    assert.equal(g.winOdds('foe',{eclatQuest:'derive'}),0.5);
   }
 });
-test('first trial has 50/50 baseline and even the hardest auto trial retains 18 percent', () => {
+test('gem trials depend only on the per-fight draw within x0.833..x1.2', () => {
   const g = game({eclats:[]});
-  g.Math.random = () => 0.5; // multiplicateur x1
-  assert.equal(g.winOdds('foe',{eclatQuest:'derive'}),0.5);
-  g.S.eclats = Array(5).fill('owned');
-  g.Math.random = () => 1; // pire tirage : gardien x1.5
-  assert.equal(g.winOdds('foe',{eclatQuest:'derive'}),0.18);
+  g.S.eclats = Array(4).fill('owned');
+  g.Math.random = () => 1; // pire tirage : gardien x1.2
+  assert.ok(Math.abs(g.winOdds('foe',{eclatQuest:'derive'}) - 0.5/1.2) < 1e-9);
+  g.Math.random = () => 0; // meilleur tirage : gardien x0.833
+  assert.ok(Math.abs(g.winOdds('foe',{eclatQuest:'derive'}) - 0.5*1.2) < 1e-9);
 });
 test('guardian strength is redrawn every gem fight on a continuous scale', () => {
   const g = game({});
