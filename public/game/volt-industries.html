@@ -11648,7 +11648,7 @@ function combatMaxHp(k){
   /* Bonus purement proportionnel (pas de montant fixe ajoute) : l'ecart entre un personnage
      modeste et un personnage au sommet de sa Prime reste globalement respecte meme une fois
      gemme a fond, plutot que tout le monde qui converge vers le meme chiffre. */
-  const rawTotal = base * (1 + gemCount*0.25);
+  const rawTotal = base * (1 + gemCount*0.15);
   /* Plafond souple, pas un mur dur : au-dela d'un certain seuil, chaque point supplementaire
      compte de moins en moins - mais ne s'arrete jamais completement. Sinon un personnage deja
      tres fort n'a plus RIEN a gagner d'une 3eme, 4eme ou 5eme Gemme une fois le plafond touche. */
@@ -11666,7 +11666,7 @@ function gemTrialScaling(mission){
   if(!mission || !(mission.eclatQuest || mission.eclatReclaim)) return {hp:1, damage:1};
   const variation = gemFightMultOf(mission);
   /* Aucun palier obligatoire : la difficulte ne depend pas du nombre de Gemmes en poche.
-     On compense seulement les bonus passifs du joueur (+25% de PV et +14% de degats par Gemme,
+     On compense seulement les bonus passifs du joueur (+15% de PV et +14% de degats par Gemme,
      voir combatMaxHp/gemPowerMult) pour que l'epreuve reste neutre face a ta puissance, puis
      le tirage du combat s'applique seul : le gardien peut etre plus fort ou moins fort que toi. */
   return {
