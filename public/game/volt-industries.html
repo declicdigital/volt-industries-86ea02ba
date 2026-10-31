@@ -11144,7 +11144,7 @@ function showBattleAftermath(html, col, cb){
   ov.querySelector('#btlAfterOk').onclick = advance;
   if(S.careerAuto) setTimeout(advance, 300);
 }
-function applyBattleAftermath(win, foeName, hpLeftPct, cb, playerWasKO){
+function applyBattleAftermath(win, foeName, hpLeftPct, cb, playerWasKO, fled){
   const f = battleForm();
   /* Serie de victoires personnelles ininterrompue pour la Puissance : etre porte par l'equipe
      alors que tu es tombe ne compte pas comme une victoire a toi, seule une vraie victoire
@@ -11186,6 +11186,19 @@ function applyBattleAftermath(win, foeName, hpLeftPct, cb, playerWasKO){
   }
   f.streak = 0;
   f.momentum = 0;
+  if(fled){
+    /* Repli volontaire : pas de blessure ni de passage aux urgences, mais ce n'est pas une victoire. */
+    S.stats.courage = clamp(S.stats.courage - 1, 0, 100);
+    S.stats.popularity = clamp(S.stats.popularity - 1, 0, 100);
+    const col = '#9aa7b8';
+    const title = S.lang==='fr'?'REPLI - TU AS DISPARU':'RETREAT - YOU VANISHED';
+    const body = S.lang==='fr'
+      ? `Tu as quitte le combat avant que ${foeName} ne puisse t'atteindre. Aucune blessure, mais aucune victoire non plus : ton elan retombe a zero.`
+      : `You left the fight before ${foeName} could reach you. No injury, but no victory either: your momentum drops to zero.`;
+    S.currentYearEntries.push({ tag:(S.lang==='fr'?`Repli face a ${foeName}`:`Retreat from ${foeName}`), location:null, type:'combat', outcome:'lose' });
+    showBattleAftermath(`<div class="ru-title" style="color:${col};font-size:12px;letter-spacing:2px;">${title}</div><p style="margin-top:12px;line-height:1.6;">${body}</p>`, col, cb);
+    return;
+  }
   const r = Math.random();
   let sev, battles, label, days;
   if(r < 0.45){ sev = 1; battles = 1; days = 4 + Math.floor(Math.random()*10); label = S.lang==='fr'?`${days} jours d'arret`:`${days} days off`; }
@@ -12530,7 +12543,7 @@ function startBattle(mission, done){
     if(S.playerCharKey==='vipera' && !st.vanishUsed){
       movesEl.innerHTML += `<button class="btl-move transform" id="btlVanish" style="grid-column:1 / -1; border-color:var(--dim); background:rgba(255,255,255,.03);">
         <b>${S.lang==='fr'?'Disparaitre':'Vanish'}</b>
-        <span>${S.lang==='fr'?'Esquive garantie la prochaine attaque, petit soin':'Guaranteed dodge on the next attack, small heal'}</span></button>`;
+        <span>${S.lang==='fr'?'Tente de quitter le combat - risque d\'echec (epreuve de Gemme : esquive + petit soin)':'Try to leave the fight - may fail (Gem trial: dodge + small heal)'}</span></button>`;
     }
     /* Ta recrue est presente au front : tu peux sacrifier ton tour pour encaisser a sa place. */
     const mineKeys = menteeKeys();
@@ -12675,10 +12688,44 @@ function startBattle(mission, done){
     renderMoves();
     setTimeout(()=>{ runTurn(); }, wait(1000));
   }
+  /* "Disparaitre" (Loki) : il peut vraiment quitter le combat - mais ca ne marche pas a tous les coups.
+     Chance de reussite : base 38%, plus haute si Loki est plus rapide que l'adversaire ou deja blesse
+     (il n'a plus rien a perdre), plus basse face a un adversaire malin, a une escouade nombreuse ou a un
+     combat d'envergure, avec un aleatoire en plus. Echec : l'illusion se dissipe, Loki perd son tour
+     et la prochaine attaque ennemie touche a coup sur. Jamais possible dans une epreuve de Gemme, un
+     duel force (Civil War, Vormir) ou un entrainement : la, il garde l'ancien effet (esquive + petit soin). */
+  function vanishEscapeChance(){
+    const myS = currentSpeed(S.playerCharKey), fS = currentSpeed(foeKey), fIQ = currentIQ(foeKey);
+    const hpFrac = clamp(allyRoster[0].hp/allyRoster[0].maxHp, 0, 1);
+    const extraFoes = Math.max(0, foeRoster.filter(f=>!f.ko).length - 1);
+    let p = 0.38
+      + clamp((myS - fS)*0.04, -0.20, 0.20)
+      - clamp((fIQ - 5)*0.025, -0.06, 0.12)
+      - extraFoes*0.05
+      + (1 - hpFrac)*0.15
+      - Math.max(0, scope - 3)*0.02
+      + (Math.random()*0.16 - 0.08);
+    return clamp(p, 0.10, 0.80);
+  }
   function vanishMove(){
     if(st.busy || st.vanishUsed) return;
     st.busy = true; setMovesEnabled(false);
-    st.vanishUsed = true; st.dodgeNext = true; st.playerActs = (st.playerActs||0) + 1;
+    st.vanishUsed = true; st.playerActs = (st.playerActs||0) + 1;
+    const noEscape = !!(mission && (mission.eclatQuest || mission.eclatReclaim || mission.vormirSoul || mission.forceDuel || mission.isTraining));
+    if(!noEscape){
+      if(Math.random() < vanishEscapeChance()){
+        st.fled = true;
+        setLog(S.lang==='fr'?`${myName} disparait pour de bon : ${foeName} ne trouve plus personne. Le combat est abandonne.`:`${myName} vanishes for good: ${foeName} finds no one. The fight is abandoned.`);
+        setTimeout(()=>{ finish(false); }, wait(1400));
+        return;
+      }
+      st.exposedNext = true;
+      setLog(S.lang==='fr'?`L'illusion de ${myName} se dissipe - ${foeName} le repere et se prepare a frapper !`:`${myName}'s illusion fades - ${foeName} spots him and moves in for the kill!`);
+      renderMoves();
+      setTimeout(()=>{ runTurn(); }, wait(1000));
+      return;
+    }
+    st.dodgeNext = true;
     const heal = Math.round(allyRoster[0].maxHp*0.08);
     allyRoster[0].hp = Math.min(allyRoster[0].maxHp, allyRoster[0].hp + heal);
     floatDmg(frameOf('ally',0), -heal, myCol); refreshEntry('ally', 0);
@@ -12713,12 +12760,12 @@ function startBattle(mission, done){
         if(deadNow.length) extraLine = S.lang==='fr' ? ` ${deadNow.map(d=>d.name).join(', ')} ne se relevera pas.` : ` ${deadNow.map(d=>d.name).join(', ')} won't get back up.`;
       }
     }
-    setLog((win ? (S.lang==='fr'?`${foeName} et son escouade sont hors de combat. Tu tiens le terrain.`:`${foeName} and their squad are down. You hold the field.`)
+    if(!st.fled) setLog((win ? (S.lang==='fr'?`${foeName} et son escouade sont hors de combat. Tu tiens le terrain.`:`${foeName} and their squad are down. You hold the field.`)
                : (S.lang==='fr'?`Tu es a terre. ${foeName} prend l'avantage.`:`You are down. ${foeName} takes the upper hand.`)) + extraLine);
     const hpPct = clamp(allyRoster[0].hp/allyRoster[0].maxHp*100, 0, 100);
     const playerWasKO = win && (allyRoster[0].ko || allyRoster[0].hp<=0);
     let permaDeath = false;
-    if(!win && scope>=6 && !(mission && (mission.isTraining || mission.vormirSoul))){
+    if(!win && !st.fled && scope>=6 && !(mission && (mission.isTraining || mission.vormirSoul))){
       /* Mort definitive apres une defaite d'ampleur : nettement reduite, et d'autant plus rare que la
          carriere est longue. */
       const deathChance = (0.02 + (scope-6)*0.012) * clamp(30/Math.max(1,(S.missionsPlan||[]).length||30), 0.35, 1);
@@ -12733,7 +12780,7 @@ function startBattle(mission, done){
       ov.classList.add('btl-out');
       setTimeout(()=>{
         ov.remove();
-        applyBattleAftermath(win, foeName, hpPct, ()=>{ renderRankBadge(); done(win, foeKey, permaDeath); }, playerWasKO);
+        applyBattleAftermath(win, foeName, hpPct, ()=>{ renderRankBadge(); done(win, foeKey, permaDeath); }, playerWasKO, !!st.fled);
       }, wait(450));
     }, wait(1500));
   }
@@ -12879,7 +12926,8 @@ function startBattle(mission, done){
     const m = foeAIMoveFor(actor.key, actor);
     const label = S.lang==='fr'?m.fr:m.en;
     /* Meme precision de coup pour les deux camps, sans bonus adverse cache. */
-    if(st.dodgeNext || Math.random() > m.acc){
+    const wasExposed = !!st.exposedNext; st.exposedNext = false;
+    if(st.dodgeNext || (!wasExposed && Math.random() > m.acc)){
       const dodgeMsg = st.dodgeNext ? (S.lang==='fr'?`${actor.name} frappe dans le vide - ${myName} a disparu.`:`${actor.name} strikes at nothing - ${myName} has vanished.`) : (S.lang==='fr'?`${actor.name} tente ${label}... et te manque.`:`${actor.name} tries ${label}... and misses.`);
       st.dodgeNext = false;
       setLog(dodgeMsg);
