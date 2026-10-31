@@ -4303,7 +4303,7 @@ function agingLabel(){
 const CHAR_NORMAL = {
   sepulcre:96,
   silversurfer:85,
-  malachar:84,
+  malachar:91,
   sentry:86,
   surtur:88,
   ronan:74,
@@ -4330,7 +4330,7 @@ const CHAR_NORMAL = {
   storm:77,
   volt:76,
   clea:76,
-  vipera:75,
+  vipera:88,
   thething:73,
   emmafrost:72,
   humantorch:70,
@@ -4380,7 +4380,7 @@ const CHAR_NORMAL = {
 const CHAR_PRIME = {
   sepulcre:100,
   silversurfer:92,
-  malachar:96,
+  malachar:99,
   sentry:98,
   surtur:97,
   ronan:85,
@@ -4407,7 +4407,7 @@ const CHAR_PRIME = {
   storm:91,
   volt:90,
   clea:88,
-  vipera:91,
+  vipera:98,
   thething:85,
   emmafrost:86,
   humantorch:83,
@@ -7454,7 +7454,6 @@ const UNLOCK_TIERS = [
   { ids:['thething'], condFr:'Terminer une carriere d\'au moins 30 ans', condEn:'Complete a career of at least 30 years', check:(m)=>(m.longestCareerYears||0)>=30 },
   { ids:['ronan'], condFr:'Vaincre ton rival 10 fois', condEn:'Defeat your rival 10 times', check:(m)=>(m.totalRivalWins||0)>=10 },
   { ids:['clea'], condFr:'Cumuler 60 etoiles au total', condEn:'Accumulate 60 stars total', check:(m)=>(m.totalStarsEarned||0)>=60 },
-  { ids:['vipera'], condFr:'Changer de camp 15 fois', condEn:'Switch sides 15 times', check:(m)=>(m.totalSideSwitches||0)>=15 },
   { ids:['volt'], condFr:'Obtenir la 4eme Gemme d\'Infinite', condEn:'Obtain the 4th Infinity Gem', check:(m)=>(m.bestGemsCount||0)>=4 },
   { ids:['invisiblewoman'], condFr:'Gagner 800 combats', condEn:'Win 800 fights', check:(m)=>(m.totalFightsWon||0)>=800 },
   { ids:['storm'], condFr:'Gerer 60 evenements presse', condEn:'Handle 60 press events', check:(m)=>(m.totalPressEventsHandled||0)>=60 },
@@ -7470,7 +7469,6 @@ const UNLOCK_TIERS = [
   { ids:['magneto'], condFr:'Changer de camp 10 fois', condEn:'Switch sides 10 times', check:(m)=>(m.totalSideSwitches||0)>=10 },
   { ids:['silversurfer'], condFr:'Jouer avec 40 personnages differents', condEn:'Play as 40 different characters', check:(m)=>(m.charactersPlayed||[]).length>=40 },
   { ids:['solen'], condFr:'Cumuler 100 etoiles au total', condEn:'Accumulate 100 stars total', check:(m)=>(m.totalStarsEarned||0)>=100 },
-  { ids:['malachar'], condFr:'Terminer 50 carrieres au total', condEn:'Complete 50 careers total', check:(m)=>(m.careersCompleted||0)>=50 },
   { ids:['apocalypse'], condFr:'Former 50 recrues', condEn:'Train 50 recruits', check:(m)=>(m.totalMenteesTrained||0)>=50 },
   { ids:['capmarvel'], condFr:'Terminer une carriere d\'au moins 40 ans', condEn:'Complete a career of at least 40 years', check:(m)=>(m.longestCareerYears||0)>=40 },
   { ids:['vaelor'], condFr:'Gagner 600 combats', condEn:'Win 600 fights', check:(m)=>(m.totalFightsWon||0)>=600 },
@@ -7479,8 +7477,10 @@ const UNLOCK_TIERS = [
   { ids:['jeangrey'], condFr:'Resoudre 25 enquetes', condEn:'Solve 25 investigations', check:(m)=>(m.totalInvestigationsSolved||0)>=25 },
   { ids:['sentry'], condFr:'Cumuler 150 etoiles au total (toutes carrieres confondues)', condEn:'Accumulate 150 stars total (across all careers)', check:(m)=>(m.totalStarsEarned||0)>=150 },
   { ids:['surtur'], condFr:'Terminer une carriere de 50 ans', condEn:'Finish a 50-year career', check:(m)=>(m.longestCareerYears||0)>=50 },
+  { ids:['vipera'], condFr:'Changer de camp 50 fois', condEn:'Switch sides 50 times', check:(m)=>(m.totalSideSwitches||0)>=50 },
+  { ids:['malachar'], condFr:'Terminer 50 carrieres au total', condEn:'Complete 50 careers total', check:(m)=>(m.careersCompleted||0)>=50 },
   { ids:['boomnpc'], condFr:'Obtenir la 8eme etoile', condEn:'Get the 8th star', check:(m)=>!!m.got8thStar },
-  { ids:['mandate'], condFr:'Vaincre ton rival 20 fois', condEn:'Defeat your rival 20 times', check:(m)=>(m.totalRivalWins||0)>=20 },
+  { ids:['mandate'], condFr:'Vaincre ton rival 70 fois', condEn:'Defeat your rival 70 times', check:(m)=>(m.totalRivalWins||0)>=70 },
   { ids:['sepulcre'], condFr:'Gagner 2000 combats', condEn:'Win 2000 fights', check:(m)=>(m.totalFightsWon||0)>=2000 },
 
 ];
@@ -8380,7 +8380,7 @@ function buildCareerPlan(){
   S.orientationCount = 0; S.lastOrientationYear = null;
   /* ====================================================================================== */
   const totalPlanned = S.missionsPlan.reduce((a,b)=>a+b,0);
-  S.deathBudgetPerMission = 1 - Math.pow(0.94, 1/Math.max(1,totalPlanned));
+  S.deathBudgetPerMission = 1 - Math.pow(0.97, 1/Math.max(1,totalPlanned));
   /* Rival : n'importe quel personnage que tu as deja debloque peut devenir ton rival, quelle que
      soit sa nature de base (heros/villain/independant) - il passe automatiquement du cote oppose
      au tien pour cette carriere, peu importe son camp canonique. */
@@ -8806,7 +8806,11 @@ function feedEclatResonance(eff, ctx){
   const aff = S.gemAffinity || {};
   if(ctx.deceit) gainEclatRes('fracture', 1 * (aff.fracture||1));
   if(ctx.patient) gainEclatRes('attente', 1 * (aff.attente||1));
-  if(ctx.investigation && ctx.battleWin!==false) gainEclatRes('murmure', 1 * (aff.murmure||1));
+  if(ctx.investigation) gainEclatRes('murmure', (ctx.battleWin!==false ? 1 : 0.5) * (aff.murmure||1)); // une enquete ratee apprend quand meme
+  /* L'Esprit se nourrit aussi de tout choix intellectuel : mots-cles mentaux, et gain d'intelligence. */
+  if(ctx.mind) gainEclatRes('murmure', 1 * (aff.murmure||1));
+  if((eff.intelligence||0) >= 5) gainEclatRes('murmure', 1 * (aff.murmure||1));
+  else if((eff.intelligence||0) >= 3) gainEclatRes('murmure', 0.5 * (aff.murmure||1));
   if((ctx.scope||1) >= 5) gainEclatRes('derive', 1 * (aff.derive||1));
 }
 /* Detecte l'intention d'un choix depuis son libelle, pour nourrir le bon domaine. */
@@ -8817,6 +8821,7 @@ function eclatCtxFromChoice(choice, extra){
   if(/negoc|corromp|piege|mentir|manipul|trahi|bluff|deceive|corrupt|trap|lie|betray/.test(t)) ctx.deceit = true;
   if(/attendre|patien|observer|etudier|analyser|preparer|study|wait|observe|analyz|prepare/.test(t)) ctx.patient = true;
   if(/sacrifi|proteger|sauver|epargner|jurer|promettre|sacrific|protect|save|spare|vow/.test(t)) ctx.sacrifice = true;
+  if(/enquet|deduire|deduction|dechiffr|decoder|decrypt|infiltr|espionn|interrog|enigme|indice|preuve|secret|mental|psychi|telepath|memoire|conscience|souvenir|reve|hacker|pirater|donnees|dossier|cerveau|esprit|stratag|comprendre|reflechir|savoir|connaissance|archive|bibliotheque|investigat|clue|evidence|decipher|infiltrate|spy|interrogate|riddle|puzzle|mind|memor|brain|psychic|knowledge|understand|figure out|strateg/.test(t)) ctx.mind = true;
   const mentorTxt = (((choice&&choice.fr)||'') + ' ' + ((choice&&choice.en)||'').replace(/\bformer\b/gi, '')).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if(/\b(former|formation|guider|enseigner|transmettre|mentor|train|teach|guide|nurture)\b|prendre sous (ton|son) aile|take.*under.*wing|\b(proteger|sauver|protect|save)\b|coordonner.*equipes|coordinate.*teams|organiser l'evacuation|organize the evacuation/.test(mentorTxt)) ctx.mentorLean = true;
   return ctx;
@@ -9375,11 +9380,11 @@ function showVormirAnnouncement(recruitName, cb){
   const beats = fr ? [
     { who:'RED SKULL', txt:`Je t'attendais. Je n'ai plus de corps a moi, plus de camp, plus de guerre : seulement cette falaise, et le devoir de dire la verite a ceux qui montent. La Pierre de l'Ame est ici. Elle repose au fond de ce gouffre depuis avant ton monde.` },
     { who:'RED SKULL', txt:`Mais la Pierre ne se prend pas. Elle se <b>paie</b>. Une ame pour une ame. Pas un ennemi, pas un inconnu : quelqu'un que tu as choisi, forme, protege. Tu es monte avec <b>${recruitName}</b>. Ce n'est pas un hasard.` },
-    { who:'RED SKULL', txt:`Alors la falaise vous a rendus identiques : meme souffle, meme force, exactement les memes coups. Aucun avantage, aucune excuse. Celui qui reste debout redescend avec la Pierre. L'autre reste ici, et <b>pour toujours</b>.` },
+    { who:'RED SKULL', txt:`Alors la falaise ne fera aucun cadeau : chacun se bat avec ce qu'il est, ses coups, sa force. Aucune excuse. Celui qui reste debout redescend avec la Pierre. L'autre reste ici, et <b>pour toujours</b>.` },
   ] : [
     { who:'RED SKULL', txt:`I was waiting for you. I have no body of my own left, no side, no war: only this cliff, and the duty to tell the truth to those who climb. The Soul Stone is here. It has rested at the bottom of that chasm since before your world.` },
     { who:'RED SKULL', txt:`But the Stone is not taken. It is <b>paid for</b>. A soul for a soul. Not an enemy, not a stranger: someone you chose, trained, protected. You climbed up with <b>${recruitName}</b>. That is no accident.` },
-    { who:'RED SKULL', txt:`So the cliff made you identical: same breath, same strength, exactly the same moves. No advantage, no excuse. Whoever is left standing walks down with the Stone. The other stays here, <b>forever</b>.` },
+    { who:'RED SKULL', txt:`So the cliff gives no gifts: each of you fights with what you are, your own moves, your own strength. No excuse. Whoever is left standing walks down with the Stone. The other stays here, <b>forever</b>.` },
   ];
   const embers = Array.from({length:22}, ()=>{
     const l = Math.random()*100, d = 6 + Math.random()*7, dl = -Math.random()*9,
@@ -12068,7 +12073,7 @@ function startBattle(mission, done){
      plus de bonus cache de precision, PV ou degats en fonction de la puissance du joueur. */
   const dmgMult = (1 + form.momentum*0.02) * (inj ? (1 - inj.sev*0.06) : 1);
   if(inj) inj.battlesLeft = Math.max(0, inj.battlesLeft - 1);
-  const vormirMirror = !!(mission && mission.vormirSoul);
+  const vormirMirror = false; // Vormir n'est plus un duel en miroir : l'adversaire a ses propres coups et sa propre puissance
   let myMoves = playerMoves(); const foeMoves = vormirMirror ? playerMoves().slice() : foeMovesFor(foeKey);
   /* Escouades : la taille de l'equipe depend du niveau (etoiles) du joueur, pas de la mission. */
   const scope = squadCapForStars();
@@ -12694,7 +12699,9 @@ function startBattle(mission, done){
     const playerWasKO = win && (allyRoster[0].ko || allyRoster[0].hp<=0);
     let permaDeath = false;
     if(!win && scope>=6 && !(mission && (mission.isTraining || mission.vormirSoul))){
-      const deathChance = 0.06 + (scope-6)*0.04;
+      /* Mort definitive apres une defaite d'ampleur : nettement reduite, et d'autant plus rare que la
+         carriere est longue. */
+      const deathChance = (0.02 + (scope-6)*0.012) * clamp(30/Math.max(1,(S.missionsPlan||[]).length||30), 0.35, 1);
       if(Math.random() < deathChance){
         permaDeath = true;
         const causeFr = `terrasse(e) par ${foeName} lors d'un affrontement d'ampleur ${scopeLabel(scope).toLowerCase()}`;
