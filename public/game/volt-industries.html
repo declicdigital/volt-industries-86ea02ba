@@ -5619,8 +5619,30 @@ function pickReactorForZone(zone, excludeKey){
   const pool = known.length ? known : (leaders.length ? leaders : keys);
   return pick(pool);
 }
+/* Dernier camp (hero/villain) reellement tenu AVANT la bascule en cours (la derniere entree de
+   turningPoints est la transition actuelle). Permet de retrouver d'ou l'on vient meme apres un
+   passage par "independant" : heros -> independant -> villain compte bien comme heros -> villain. */
+function lastCommittedSideBeforeNow(){
+  const tp = S.turningPoints || [];
+  for(let i = tp.length - 2; i >= 0; i--){
+    const e = tp[i]; if(!e) continue;
+    if(e.to==='hero' || e.to==='villain') return e.to;
+    if(e.from==='hero' || e.from==='villain') return e.from;
+  }
+  return null;
+}
 function showSwitchAnnouncement(fromZone, toZone, cb){
-  if(fromZone===toZone || (fromZone!=='hero'&&fromZone!=='villain')){ cb(); return; }
+  /* Quitter un camp pour devenir independant n'est pas encore un basculement : rien a annoncer. */
+  if(toZone!=='hero' && toZone!=='villain'){ cb(); return; }
+  /* Arriver dans un camp depuis "independant" : si on tenait l'autre camp juste avant, c'est un vrai
+     basculement (cinematique comprise). Revenir dans le meme camp, ou s'engager pour la 1re fois, non. */
+  let effFrom = fromZone;
+  if(effFrom!=='hero' && effFrom!=='villain'){
+    const anchor = lastCommittedSideBeforeNow();
+    if(anchor && anchor!==toZone) effFrom = anchor;
+  }
+  if(effFrom===toZone || (effFrom!=='hero' && effFrom!=='villain')){ cb(); return; }
+  fromZone = effFrom;
   const isFr = S.lang==='fr';
   const betrayerKey = pickReactorForZone(fromZone);
   const welcomerKey = pickReactorForZone(toZone);
